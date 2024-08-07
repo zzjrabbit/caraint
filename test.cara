@@ -1,0 +1,7 @@
+var _我 = 10;
+var b = 5;
+var w = 2;
+var c = (_我+b)*w - -1;
+_我 = b;
+const x = _我;
+const y = x;

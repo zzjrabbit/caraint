@@ -1,0 +1,14 @@
+[package]
+name = "cara"
+version = "0.6.0"
+edition = "2021"
+
+[dependencies]
+spin = "0.9.8"
+
+[profile.release]
+lto = true
+opt-level = "z"
+panic = "abort"
+strip = "symbols"
+codegen-units = 1
