@@ -1,7 +1,19 @@
-var _我 = 10;
-var b = 5;
-var w = 2;
-var c = (_我+b)*w - -1;
-_我 = b;
-const x = _我;
-const y = x;
+fn fib(n) {
+    if n == 1 {
+        return 1;
+    }
+    if n == 2 {
+        return 1;
+    }
+    var a = 1;
+    var b = 1;
+    for i in (3,n+1) {
+        var t = a+b;
+        a = b;
+        b = t;
+    }
+    return b;
+}
+
+const test = fib(1000000);
+

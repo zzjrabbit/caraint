@@ -23,7 +23,7 @@ fn main() {
 
     let mut interpreter = Interpreter::new();
 
-    let result = interpreter.visit(ast);
+    let result = interpreter.visit(ast).unwrap();
 
-    println!("{}", result);
+    println!("{:?}", result);
 }

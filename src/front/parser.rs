@@ -28,6 +28,26 @@ impl Parser {
         self.current_token = self.lexer.get_token();
     }
 
+    fn eat(&mut self, token: Token) -> Token {
+        if let Some(t) = self.current_token.as_ref() {
+            let ok = match (t, token.clone()) {
+                (Token::Id(_), Token::Id(_))
+                | (Token::Number(_), Token::Number(_))
+                | (Token::Operator(_), Token::Operator(_)) => true,
+                _ => token == *t,
+            };
+            if ok {
+                let t = t.clone();
+                self.advance();
+                t
+            } else {
+                panic!("Expected {:?}, but found {:?}", token, t);
+            }
+        } else {
+            panic!("Unexpected end of input");
+        }
+    }
+
     /// Returns the whole AST. \
     /// Expample
     /// ```rust
@@ -94,87 +114,195 @@ impl Parser {
                     return match key_word {
                         KeywordTypes::Var => self.parse_var(),
                         KeywordTypes::Const => self.parse_const(),
+                        KeywordTypes::Fn => self.parse_function(),
+                        KeywordTypes::Return => self.parse_return(),
+                        KeywordTypes::If => self.parse_if(),
+                        KeywordTypes::For => self.parse_for(),
+                        _ => unreachable!()
                     }
                 }
-                Token::Id(_) => return self.parse_assign(),
+                Token::Id(_) => {
+                    if self.lexer.current_char() == '(' {
+                        return self.parse_call(true);
+                    } else {
+                        return self.parse_assign();
+                    }
+                }
                 _ => panic!("Syntax error {:?}!", current_token),
             }
         }
         panic!("Nothing to parse!");
     }
 
+    fn parse_for(&mut self) -> Box<AstNodes> {
+        self.advance();
+
+        let variable = self.eat(Token::Id("".into())).as_ident().unwrap();
+
+        self.eat(Token::Keyword(KeywordTypes::In));
+        
+        self.eat(Token::LParen);
+        let start = self.parse_expr();
+        self.eat(Token::Comma);
+        let end = self.parse_expr();
+        self.eat(Token::RParen);
+
+        self.eat(Token::LBrace);
+        let body = self.parse_block();
+        self.eat(Token::RBrace);
+
+        Box::new(AstNodes::For(variable, start, end, body))
+    }
+
+    fn parse_if(&mut self) -> Box<AstNodes> {
+        self.advance();
+        //self.eat(Token::LParen);
+        let condition = self.parse_expr();
+        //self.eat(Token::RParen);
+
+        self.eat(Token::LBrace);
+        let then_block = self.parse_block();
+        self.eat(Token::RBrace);
+
+        let else_block = if let Some(Token::Keyword(KeywordTypes::Else)) = self.current_token {
+            self.advance();
+            self.eat(Token::LBrace);
+            let block = self.parse_block();
+            self.eat(Token::RBrace);
+            block
+        } else {
+            Vec::new()
+        };
+
+        Box::new(AstNodes::If(condition, then_block, else_block))
+    }
+
+    fn parse_block(&mut self) -> Vec<Box<AstNodes>> {
+        let mut children = Vec::new();
+        while let Some(_) = self.current_token {
+            if let Some(Token::RBrace) = self.current_token {
+                break;
+            }
+            children.push(self.parse_statement());
+        }
+        children
+    }
+
+    fn parse_return(&mut self) -> Box<AstNodes> {
+        self.advance();
+        let expr = self.parse_expr();
+        self.eat(Token::Semi);
+        Box::new(AstNodes::Return(expr))
+    }
+
+    fn parse_function(&mut self) -> Box<AstNodes> {
+        self.advance();
+        let id = self.eat(Token::Id("".into())).as_ident().unwrap();
+
+        self.eat(Token::LParen);
+        let params = self.parse_params();
+        self.eat(Token::RParen);
+
+        self.eat(Token::LBrace);
+
+        let mut body = Vec::new();
+        while let Some(current) = self.current_token.clone() {
+            if current != Token::RBrace {
+                body.push(self.parse_statement());
+            } else {
+                break;
+            }
+        }
+
+        self.eat(Token::RBrace);
+
+        Box::new(AstNodes::FunctionDef(id, params, body))
+    }
+
+    fn parse_params(&mut self) -> Vec<String> {
+        let mut params = Vec::new();
+        while let Some(current_token) = self.current_token.clone() {
+            match current_token {
+                Token::Id(id) => {
+                    params.push(id);
+                    self.advance();
+                    if let Some(token) = self.current_token.clone() {
+                        match token {
+                            Token::Comma => self.advance(),
+                            Token::RParen => break,
+                            _ => panic!("Expected identifier or ',', found {token:?}!"),
+                        }
+                    }
+                }
+                Token::RParen => break,
+                _ => panic!(
+                    "Syntax error! Expected ID or ',', found {:?}!",
+                    current_token
+                ),
+            }
+        }
+        params
+    }
+
     fn parse_const(&mut self) -> Box<AstNodes> {
         self.advance();
-        let id = self.current_token.clone().unwrap();
-        let id = match id {
-            Token::Id(id) => id.clone(),
-            _ => panic!("Syntax error! Expected ID!"),
-        };
-        self.advance();
-        let assign = self.current_token.clone().unwrap();
-        match assign {
-            Token::Assign => {}
-            _ => panic!("Syntax error! Expected '=' !"),
-        }
-        self.advance();
+
+        let id = self.eat(Token::Id("".into())).as_ident().unwrap();
+
+        self.eat(Token::Assign);
+
         let init_val = self.parse_expr();
-        let semmi = self.current_token.clone().unwrap();
-        match semmi {
-            Token::Semi => {}
-            _ => panic!("Syntax error! Expected ';' ,found {:?}!", semmi),
-        }
-        self.advance();
+
+        self.eat(Token::Semi);
+
         Box::new(AstNodes::ConstDef(id, init_val))
     }
 
     fn parse_var(&mut self) -> Box<AstNodes> {
         self.advance();
-        let id = self.current_token.clone().unwrap();
-        let id = match id {
-            Token::Id(id) => id.clone(),
-            _ => panic!("Syntax error! Expected ID!"),
-        };
-        self.advance();
-        let assign = self.current_token.clone().unwrap();
-        match assign {
-            Token::Assign => {}
-            _ => panic!("Syntax error! Expected '=' !"),
-        }
-        self.advance();
+
+        let id = self.eat(Token::Id("".into())).as_ident().unwrap();
+
+        self.eat(Token::Assign);
+
         let init_val = self.parse_expr();
-        let semmi = self.current_token.clone().unwrap();
-        match semmi {
-            Token::Semi => {}
-            _ => panic!("Syntax error! Expected ';' ,found {:?}!", semmi),
-        }
-        self.advance();
+
+        self.eat(Token::Semi);
+
         Box::new(AstNodes::VarDef(id, init_val))
     }
 
     fn parse_assign(&mut self) -> Box<AstNodes> {
-        let id = self.current_token.clone().unwrap();
-        let id = match id {
-            Token::Id(id) => id.clone(),
-            _ => panic!("Syntax error! Expected ID!"),
-        };
-        self.advance();
-        let assign = self.current_token.clone().unwrap();
-        match assign {
-            Token::Assign => {}
-            _ => panic!("Syntax error! Expected '='!"),
-        }
-        self.advance();
+        let id = self.eat(Token::Id("".into())).as_ident().unwrap();
+
+        self.eat(Token::Assign);
+
         let expr = self.parse_expr();
-        let semmi = self.current_token.clone().unwrap();
-        match semmi {
-            Token::Semi => {}
-            _ => panic!("Syntax error! Expected ';' ,found {:?}!", semmi),
-        }
-        self.advance();
+
+        self.eat(Token::Semi);
+
         Box::new(AstNodes::Assign(id, expr))
     }
 
     fn parse_expr(&mut self) -> Box<AstNodes> {
+        let mut node = self.parse_add_expr();
+        while let Some(current_token) = self.current_token.clone() {
+            if let Some(op) = current_token.as_operator() {
+                match op {
+                    'e' => {
+                        self.advance();
+                        node = Box::new(AstNodes::BinaryOp(node, op, self.parse_add_expr()));
+                    }
+                    _ => break,
+                }
+            } else {
+                break;
+            }
+        }
+        node
+    }
+
+    fn parse_add_expr(&mut self) -> Box<AstNodes> {
         let mut node = self.parse_term();
         while let Some(current_token) = self.current_token.clone() {
             if let Some(op) = current_token.as_operator() {
@@ -211,7 +339,8 @@ impl Parser {
     }
 
     fn parse_factor(&mut self) -> Box<AstNodes> {
-        match self.current_token.clone().unwrap() {
+        let token = self.current_token.clone().unwrap();
+        match token {
             Token::Number(num) => {
                 self.advance();
                 Box::new(AstNodes::Number(num))
@@ -219,11 +348,7 @@ impl Parser {
             Token::LParen => {
                 self.advance();
                 let node = self.parse_expr();
-                match self.current_token.clone().unwrap() {
-                    Token::RParen => {}
-                    _ => panic!("Expected ')'!"),
-                }
-                self.advance();
+                self.eat(Token::RParen);
                 node
             }
             Token::Operator(op) => match op {
@@ -235,10 +360,50 @@ impl Parser {
                 _ => panic!("Unexpected unary operator {}!", op),
             },
             Token::Id(id) => {
-                self.advance();
-                Box::new(AstNodes::ReadVar(id))
+                println!("{}",self.lexer.current_char());
+                if self.lexer.current_char() == '(' {
+                    let node = self.parse_call(false);
+                    //println!("{}",self.lexer.current_char());
+                    node
+                } else {
+                    self.advance();
+                    Box::new(AstNodes::ReadVar(id))
+                }
             }
-            _ => panic!("Syntax error!"),
+            _ => panic!("Syntax error {:?}!",token),
         }
+    }
+
+    fn parse_call(&mut self, stmt: bool) -> Box<AstNodes> {
+        let id = self.eat(Token::Id("".into())).as_ident().unwrap();
+
+        self.eat(Token::LParen);
+
+        let args = self.parse_args();
+
+        self.eat(Token::RParen);
+
+        if stmt {
+            self.eat(Token::Semi);
+        }
+
+        Box::new(AstNodes::Call(id, args))
+    }
+
+    fn parse_args(&mut self) -> Vec<Box<AstNodes>> {
+        let mut args = Vec::new();
+        while let Some(current_token) = self.current_token.clone() {
+            if current_token != Token::RParen {
+                args.push(self.parse_expr());
+                if let Some(Token::Comma) = self.current_token {
+                    self.advance();
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+        args
     }
 }

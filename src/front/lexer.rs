@@ -1,9 +1,17 @@
+use num_bigint::BigInt;
+
 /// This enum defines all the token types with their values
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum KeywordTypes {
     Var,
     Const,
+    Fn,
+    Return,
+    If,
+    Else,
+    For,
+    In,
 }
 
 impl KeywordTypes {
@@ -11,6 +19,12 @@ impl KeywordTypes {
         match string.as_str() {
             "var" => Some(Self::Var),
             "const" => Some(Self::Const),
+            "fn" => Some(Self::Fn),
+            "return" => Some(Self::Return),
+            "if" => Some(Self::If),
+            "else" => Some(Self::Else),
+            "for" => Some(Self::For),
+            "in" => Some(Self::In),
             _ => None,
         }
     }
@@ -19,7 +33,7 @@ impl KeywordTypes {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Token {
     /// Numbers, such as 0,1,2,1234,114514 and so on.
-    Number(i64),
+    Number(BigInt),
     /// Operators, +,-,*,/,......
     Operator(char),
     /// Left paren, (
@@ -34,6 +48,12 @@ pub enum Token {
     Assign,
     /// Semi
     Semi,
+    /// LBrace, {
+    LBrace,
+    /// RBrace, }
+    RBrace,
+    /// Comma, ,
+    Comma,
 }
 
 impl Token {
@@ -41,6 +61,13 @@ impl Token {
     pub fn as_operator(&self) -> Option<char> {
         match self {
             Token::Operator(ch) => Some(*ch),
+            _ => None,
+        }
+    }
+
+    pub fn as_ident(&self) -> Option<String> {
+        match self {
+            Token::Id(id) => Some(id.clone()),
             _ => None,
         }
     }
@@ -72,6 +99,10 @@ impl Lexer {
         c
     }
 
+    pub fn current_char(&self) -> char {
+        self.input.chars().nth(self.position).unwrap_or('\0')
+    }
+
     /// Let the lexer parse a token and return it. \
     /// Example
     /// ```rust
@@ -87,14 +118,13 @@ impl Lexer {
         while let Some(ch) = self.advance() {
             match ch {
                 '0'..='9' => {
-                    let mut num = ch.to_digit(10).unwrap() as i64;
+                    let mut num = BigInt::from(ch.to_digit(10).unwrap());
                     while let Some(ch) = self.advance() {
                         if !ch.is_numeric() {
                             self.position -= 1;
                             break;
                         }
-                        num *= 10;
-                        num += ch.to_digit(10).unwrap() as i64;
+                        num = num * 10 + ch.to_digit(10).unwrap();
                     }
                     return Some(Token::Number(num));
                 }
@@ -103,15 +133,26 @@ impl Lexer {
                 }
                 '(' => return Some(Token::LParen),
                 ')' => return Some(Token::RParen),
-                '=' => return Some(Token::Assign),
+                '=' => {
+                    println!("{}",self.current_char());
+                    if self.current_char() == '=' {
+                        self.advance();
+                        return Some(Token::Operator('e'));
+                    }
+                    return Some(Token::Assign);
+                    
+                },
                 ';' => return Some(Token::Semi),
+                '{' => return Some(Token::LBrace),
+                '}' => return Some(Token::RBrace),
+                ',' => return Some(Token::Comma),
                 ' ' | '\n' | '\r' => continue,
                 _ => {
                     if ch.is_alphabetic() || ch == '_' {
                         let mut id = String::new();
                         id.push(ch);
                         while let Some(ch) = self.advance() {
-                            if !ch.is_alphabetic() {
+                            if !ch.is_alphabetic() && ch != '_' {
                                 self.position -= 1;
                                 break;
                             }
@@ -119,9 +160,8 @@ impl Lexer {
                         }
                         if let Some(keyword_type) = KeywordTypes::from_string(id.clone()) {
                             return Some(Token::Keyword(keyword_type));
-                        } else {
-                            return Some(Token::Id(id));
                         }
+                        return Some(Token::Id(id));
                     }
                     panic!("Unexpected charactor {}!", ch)
                 }
