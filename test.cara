@@ -1,19 +1,13 @@
-fn fib(n) {
-    if n == 1 {
-        return 1;
-    }
-    if n == 2 {
-        return 1;
-    }
-    var a = 1;
-    var b = 1;
-    for i in (3,n+1) {
-        var t = a+b;
-        a = b;
-        b = t;
-    }
-    return b;
+var Ё = [0;5];
+
+for Ии in (0,5) {
+    print(Ё[Ии]);
+    Ё[Ии] = Ии+1;
 }
 
-const test = fib(1000000);
+var len = len(Ё);
 
+remove(Ё,len-1);
+
+print(Ё);
+print(len);

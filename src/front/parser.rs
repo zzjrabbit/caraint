@@ -134,6 +134,37 @@ impl Parser {
         panic!("Nothing to parse!");
     }
 
+    fn parse_list(&mut self) -> Box<AstNodes> {
+        self.eat(Token::LBracket);
+        let mut value_list = Vec::new();
+
+        if let Some(Token::RBracket) = self.current_token {
+
+        }else {
+            let first_value = self.parse_expr();
+
+            if let Some(Token::Semi) = self.current_token {
+                self.advance();
+                let num = self.parse_expr();
+                self.eat(Token::RBracket);
+                return Box::new(AstNodes::TemplateList(first_value, num));
+            } else {
+                value_list.push(first_value.clone());
+                while let Some(token) = self.current_token.clone() {
+                    if let Token::RBracket = token {
+                        break;
+                    }
+                    self.eat(Token::Comma);
+                    let value = self.parse_expr();
+                    value_list.push(value);
+                }
+            }
+        }
+
+        self.eat(Token::RBracket);
+        Box::new(AstNodes::List(value_list))
+    }
+
     fn parse_for(&mut self) -> Box<AstNodes> {
         self.advance();
 
@@ -265,7 +296,11 @@ impl Parser {
 
         self.eat(Token::Assign);
 
-        let init_val = self.parse_expr();
+        let init_val = if let Some(Token::LBracket) = self.current_token {
+            self.parse_list()
+        }else {
+            self.parse_expr()
+        };
 
         self.eat(Token::Semi);
 
@@ -275,13 +310,22 @@ impl Parser {
     fn parse_assign(&mut self) -> Box<AstNodes> {
         let id = self.eat(Token::Id("".into())).as_ident().unwrap();
 
+        let index = if let Some(Token::LBracket) = self.current_token {
+            self.advance();
+            let index = self.parse_expr();
+            self.eat(Token::RBracket);
+            Some(index)
+        }else {
+            None
+        };
+
         self.eat(Token::Assign);
 
         let expr = self.parse_expr();
 
         self.eat(Token::Semi);
 
-        Box::new(AstNodes::Assign(id, expr))
+        Box::new(AstNodes::Assign(id ,index, expr))
     }
 
     fn parse_expr(&mut self) -> Box<AstNodes> {
@@ -360,11 +404,16 @@ impl Parser {
                 _ => panic!("Unexpected unary operator {}!", op),
             },
             Token::Id(id) => {
-                println!("{}",self.lexer.current_char());
                 if self.lexer.current_char() == '(' {
                     let node = self.parse_call(false);
                     //println!("{}",self.lexer.current_char());
                     node
+                } else if self.lexer.current_char() == '[' {
+                    self.advance();
+                    self.advance();
+                    let index_value = self.parse_expr();
+                    self.eat(Token::RBracket);
+                    Box::new(AstNodes::Index(id, index_value))
                 } else {
                     self.advance();
                     Box::new(AstNodes::ReadVar(id))

@@ -13,6 +13,14 @@ pub enum Symbol {
 }
 
 impl Symbol {
+    pub fn get_value_mut(&mut self) -> Result<&mut CrValue> {
+        match self {
+            Symbol::Const(_, value) => Ok(value),
+            Symbol::Var(_, value) => Ok(value),
+            Symbol::Function(_, _, _) => Err(Error::UseVoidValue),
+        }
+    }
+
     pub fn get_id(&self) -> String {
         match self {
             Symbol::Const(id, _) => id,

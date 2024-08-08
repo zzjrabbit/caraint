@@ -19,11 +19,16 @@ fn main() {
 
     let ast = parser.parse_compile_unit();
 
+    #[cfg(debug_assertions)]
     println!("{:#?}", ast);
 
     let mut interpreter = Interpreter::new();
 
+    #[cfg(debug_assertions)]
     let result = interpreter.visit(ast).unwrap();
+    #[cfg(not(debug_assertions))]
+    interpreter.visit(ast).unwrap();
 
+    #[cfg(debug_assertions)]
     println!("{:?}", result);
 }

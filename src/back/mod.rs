@@ -7,6 +7,7 @@ use crate::ast::AstNodes;
 use result::{Error, Result};
 use scope::{Symbol, SymbolTable};
 
+mod builtins;
 mod result;
 mod scope;
 mod value;
@@ -46,7 +47,7 @@ impl Interpreter {
     /// ```
     pub fn visit(&mut self, node: Box<AstNodes>) -> Result<CrValue> {
         match node.as_ref().clone() {
-            AstNodes::Assign(id, value) => self.visit_assign(id, value),
+            AstNodes::Assign(id, index, value) => self.visit_assign(id, index, value),
             AstNodes::BinaryOp(left, op, right) => self.visit_binary_op(left, op, right),
             AstNodes::CompileUnit(statements) => self.visit_compile_unit(statements),
             AstNodes::Number(num) => self.visit_number(num),
@@ -61,7 +62,45 @@ impl Interpreter {
                 self.visit_if(condition, then_block, else_block)
             }
             AstNodes::For(variable, start, end, body) => self.visit_for(variable, start, end, body),
+            AstNodes::List(value_list) => self.visit_list(value_list),
+            AstNodes::Index(id, index) => self.visit_index(id, index),
+            AstNodes::TemplateList(template, num) => self.visit_template_list(template, num),
         }
+    }
+
+    fn visit_index(&mut self, id: String, index: Box<AstNodes>) -> Result<CrValue> {
+        let index = self.visit(index)?.into_int()?;
+        if let Some(symbol) = self.current_symbol_table.write().get(&id) {
+            let array = symbol.get_value()?;
+            Ok(array.into_list()?[*index.to_u64_digits().1.get(0).unwrap_or(&0) as usize].clone())
+        } else {
+            Err(Error::SymbolNotFound)
+        }
+    }
+
+    fn visit_template_list(
+        &mut self,
+        template: Box<AstNodes>,
+        num: Box<AstNodes>,
+    ) -> Result<CrValue> {
+        let template_value = self.visit(template)?;
+        let mut num = self
+            .visit(num)?
+            .into_int()?.clone();
+        let mut values = Vec::new();
+        while num > BigInt::ZERO {
+            values.push(template_value.clone());
+            num -= 1;
+        }
+        Ok(CrValue::List(values))
+    }
+
+    fn visit_list(&mut self, value_list: Vec<Box<AstNodes>>) -> Result<CrValue> {
+        let mut values = Vec::new();
+        for value in value_list {
+            values.push(self.visit(value)?);
+        }
+        Ok(CrValue::List(values))
     }
 
     fn visit_for(
@@ -82,16 +121,17 @@ impl Interpreter {
                 last_symbol_table.clone(),
             ))));
 
-            temp_symbol_table
-                .write()
-                .insert(Symbol::Const(variable.clone(), CrValue::Number(var.clone())));
+            temp_symbol_table.write().insert(Symbol::Const(
+                variable.clone(),
+                CrValue::Number(var.clone()),
+            ));
 
             self.current_symbol_table = temp_symbol_table;
             for item in body.iter() {
                 self.visit(item.clone())?;
             }
             self.current_symbol_table = last_symbol_table;
-            var+=1;
+            var += 1;
         }
         Ok(CrValue::Void)
     }
@@ -124,14 +164,29 @@ impl Interpreter {
         }
     }
 
-    fn visit_assign(&mut self, id: String, value: Box<AstNodes>) -> Result<CrValue> {
+    fn visit_assign(
+        &mut self,
+        id: String,
+        index: Option<Box<AstNodes>>,
+        value: Box<AstNodes>,
+    ) -> Result<CrValue> {
         let value = self.visit(value)?;
-        self.current_symbol_table
-            .write()
-            .get_mut(&id)
-            .expect(format!("Unable to find variable {}!", id).as_str())
-            .try_assign(value.clone())?;
-        //println!("assign {id} {}", value);
+        if let Some(index) = index {
+            let index = self.visit(index)?.into_int()?;
+            let mut symbol_table = self.current_symbol_table.write();
+            let array = symbol_table
+                .get_mut(&id)
+                .expect(format!("Unable to find list variable {}!", id).as_str());
+            array.get_value_mut()?.into_list_mut()?[*index.to_u64_digits().1.get(0).unwrap_or(&0) as usize] = value.clone();
+        } else {
+            self.current_symbol_table
+                .write()
+                .get_mut(&id)
+                .expect(format!("Unable to find variable {}!", id).as_str())
+                .try_assign(value.clone())?;
+        }
+        #[cfg(debug_assertions)]
+        println!("assign {id} {}", value);
         Ok(CrValue::Void)
     }
 
@@ -161,7 +216,7 @@ impl Interpreter {
         Ok(CrValue::Void)
     }
 
-    fn visit_number(&mut self, num:BigInt) -> Result<CrValue> {
+    fn visit_number(&mut self, num: BigInt) -> Result<CrValue> {
         Ok(CrValue::Number(num))
     }
 
@@ -175,6 +230,7 @@ impl Interpreter {
 
     fn visit_const_def(&mut self, id: String, const_value: Box<AstNodes>) -> Result<CrValue> {
         let const_value = self.visit(const_value)?;
+        #[cfg(debug_assertions)]
         println!("Defined constant {} with value {}!", id, const_value);
         self.current_symbol_table
             .write()
@@ -184,7 +240,8 @@ impl Interpreter {
 
     fn visit_var_def(&mut self, id: String, init_value: Box<AstNodes>) -> Result<CrValue> {
         let init_value = self.visit(init_value)?;
-        //println!("Defined variable {} with value {}!", id, init_value);
+        #[cfg(debug_assertions)]
+        println!("Defined variable {} with value {}!", id, init_value);
         self.current_symbol_table
             .write()
             .insert(Symbol::Var(id, init_value));
@@ -211,6 +268,28 @@ impl Interpreter {
     }
 
     fn visit_call(&mut self, id: String, args: Vec<Box<AstNodes>>) -> Result<CrValue> {
+        match id.as_str() {
+            "print" => {
+                self.print(args)?;
+                return Ok(CrValue::Void);
+            },
+            "append" => {
+                self.append(args)?;
+                return Ok(CrValue::Void);
+            },
+            "insert" => {
+                self.insert(args)?;
+                return Ok(CrValue::Void);
+            }
+            "len" => {
+                return self.len(args);
+            }
+            "remove" => {
+                return self.remove(args);
+            }
+            _ => {}
+        }
+
         let symbol_table = self.current_symbol_table.read();
         let function = symbol_table
             .get(id.as_str())

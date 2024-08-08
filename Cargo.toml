@@ -13,8 +13,8 @@ features = ["serde","rand"]
 
 [profile.release]
 lto = true
-opt-level = "z"
+opt-level = 3
 panic = "abort"
-# strip = "symbols"
+strip = "symbols"
 codegen-units = 1
-debug = true
+# debug = true

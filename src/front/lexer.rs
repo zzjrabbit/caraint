@@ -54,6 +54,10 @@ pub enum Token {
     RBrace,
     /// Comma, ,
     Comma,
+    /// LBracket, {
+    LBracket,
+    /// RBracket, }
+    RBracket,
 }
 
 impl Token {
@@ -134,7 +138,6 @@ impl Lexer {
                 '(' => return Some(Token::LParen),
                 ')' => return Some(Token::RParen),
                 '=' => {
-                    println!("{}",self.current_char());
                     if self.current_char() == '=' {
                         self.advance();
                         return Some(Token::Operator('e'));
@@ -145,6 +148,8 @@ impl Lexer {
                 ';' => return Some(Token::Semi),
                 '{' => return Some(Token::LBrace),
                 '}' => return Some(Token::RBrace),
+                '[' => return Some(Token::LBracket),
+                ']' => return Some(Token::RBracket),
                 ',' => return Some(Token::Comma),
                 ' ' | '\n' | '\r' => continue,
                 _ => {
