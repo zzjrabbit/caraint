@@ -46,7 +46,7 @@ impl Interpreter {
     /// assert_eq!(interpreter.visit(node),2);
     /// ```
     pub fn visit(&mut self, node: Box<AstNodes>) -> Result<CrValue> {
-        match node.as_ref().clone() {
+        match *node {
             AstNodes::Assign(id, index, value) => self.visit_assign(id, index, value),
             AstNodes::BinaryOp(left, op, right) => self.visit_binary_op(left, op, right),
             AstNodes::CompileUnit(statements) => self.visit_compile_unit(statements),
@@ -91,7 +91,7 @@ impl Interpreter {
             ))));
 
             self.current_symbol_table = temp_symbol_table;
-            for item in body.iter() {
+            for item in &body {
                 if let Err(error) = self.visit(item.clone()) {
                     match error {
                         Error::Break => return Ok(CrValue::Void),
@@ -123,7 +123,7 @@ impl Interpreter {
         template: Box<AstNodes>,
         num: Box<AstNodes>,
     ) -> Result<CrValue> {
-        let template_value = self.visit(template)?;
+        let template_value = Box::new(self.visit(template)?);
         let num = *self
             .visit(num)?
             .into_int()?
@@ -133,7 +133,7 @@ impl Interpreter {
             .unwrap_or(&0);
         let mut values = Vec::with_capacity(num as usize);
         for _ in 0..num {
-            values.push(Box::new(template_value.clone()));
+            values.push(template_value.clone());
         }
         Ok(CrValue::List(num as usize, values))
     }
@@ -156,9 +156,9 @@ impl Interpreter {
         let start = self.visit(start)?.into_int()?;
         let end = self.visit(end)?.into_int()?;
 
-        let mut var = start;
+        let need = *(end - start.clone()).to_u64_digits().1.get(0).unwrap_or(&0) as usize;
 
-        while var < end {
+        for pos in 0..need {
             let last_symbol_table = self.current_symbol_table.clone();
             let temp_symbol_table = Arc::new(RwLock::new(SymbolTable::new(Some(
                 last_symbol_table.clone(),
@@ -166,11 +166,11 @@ impl Interpreter {
 
             temp_symbol_table.write().insert(Symbol::Const(
                 variable.clone(),
-                CrValue::Number(var.clone()),
+                CrValue::Number(start.clone() + pos),
             ));
 
             self.current_symbol_table = temp_symbol_table;
-            for item in body.iter() {
+            for item in &body {
                 if let Err(error) = self.visit(item.clone()) {
                     match error {
                         Error::Break => return Ok(CrValue::Void),
@@ -180,7 +180,6 @@ impl Interpreter {
                 }
             }
             self.current_symbol_table = last_symbol_table;
-            var += 1;
         }
         Ok(CrValue::Void)
     }
