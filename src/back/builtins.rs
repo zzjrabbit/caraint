@@ -24,9 +24,14 @@ impl Interpreter {
             let mut symbol_table = self.current_symbol_table.write();
 
             let symbol = symbol_table.get_mut(id).unwrap().get_value_mut()?;
-            let list = symbol.into_list_mut()?;
+            let (start_len,list) = symbol.into_list_mut()?;
 
-            list.push(value.clone());
+            list.push(Box::new(value));
+
+            if list.len() > *start_len*2 {
+                *start_len = list.len()*2;
+                let _ = list.try_reserve(list.len());
+            }
 
             Ok(())
         } else {
@@ -45,9 +50,14 @@ impl Interpreter {
             let mut symbol_table = self.current_symbol_table.write();
 
             let symbol = symbol_table.get_mut(id).unwrap().get_value_mut()?;
-            let list = symbol.into_list_mut()?;
+            let (start_len,list) = symbol.into_list_mut()?;
 
-            list.insert(index as usize, value.clone());
+            list.insert(index as usize, Box::new(value));
+
+            if list.len() > *start_len*2 {
+                *start_len = list.len()*2;
+                let _ = list.try_reserve(list.len()*2);
+            }
 
             Ok(())
         } else {
@@ -63,7 +73,7 @@ impl Interpreter {
             let symbol_table = self.current_symbol_table.write();
 
             let symbol = symbol_table.get(id).unwrap().get_value()?;
-            let list = symbol.into_list()?;
+            let (_,list) = symbol.into_list()?;
 
             Ok(CrValue::Number(BigInt::from(list.len())))
         } else {
@@ -81,9 +91,9 @@ impl Interpreter {
             let mut symbol_table = self.current_symbol_table.write();
 
             let symbol = symbol_table.get_mut(id).unwrap().get_value_mut()?;
-            let list = symbol.into_list_mut()?;
+            let (_,list) = symbol.into_list_mut()?;
 
-            Ok(list.remove(index as usize))
+            Ok(*list.remove(index as usize))
         } else {
             Err(Error::ArgMismatch)
         }

@@ -72,7 +72,7 @@ impl Interpreter {
         let index = self.visit(index)?.into_int()?;
         if let Some(symbol) = self.current_symbol_table.write().get(&id) {
             let array = symbol.get_value()?;
-            Ok(array.into_list()?[*index.to_u64_digits().1.get(0).unwrap_or(&0) as usize].clone())
+            Ok(*array.into_list()?.1[*index.to_u64_digits().1.get(0).unwrap_or(&0) as usize].clone())
         } else {
             Err(Error::SymbolNotFound)
         }
@@ -84,23 +84,26 @@ impl Interpreter {
         num: Box<AstNodes>,
     ) -> Result<CrValue> {
         let template_value = self.visit(template)?;
-        let mut num = self
+        let num = *self
             .visit(num)?
-            .into_int()?.clone();
-        let mut values = Vec::new();
-        while num > BigInt::ZERO {
-            values.push(template_value.clone());
-            num -= 1;
+            .into_int()?
+            .to_u64_digits()
+            .1
+            .get(0)
+            .unwrap_or(&0);
+        let mut values = Vec::with_capacity(num as usize);
+        for _ in 0..num {
+            values.push(Box::new(template_value.clone()));
         }
-        Ok(CrValue::List(values))
+        Ok(CrValue::List(num as usize,values))
     }
 
     fn visit_list(&mut self, value_list: Vec<Box<AstNodes>>) -> Result<CrValue> {
-        let mut values = Vec::new();
+        let mut values = Vec::with_capacity(value_list.len());
         for value in value_list {
-            values.push(self.visit(value)?);
+            values.push(Box::new(self.visit(value)?));
         }
-        Ok(CrValue::List(values))
+        Ok(CrValue::List(values.len(),values))
     }
 
     fn visit_for(
@@ -113,7 +116,7 @@ impl Interpreter {
         let start = self.visit(start)?.into_int()?;
         let end = self.visit(end)?.into_int()?;
 
-        let mut var = start.clone();
+        let mut var = start;
 
         while var < end {
             let last_symbol_table = self.current_symbol_table.clone();
@@ -177,16 +180,15 @@ impl Interpreter {
             let array = symbol_table
                 .get_mut(&id)
                 .expect(format!("Unable to find list variable {}!", id).as_str());
-            array.get_value_mut()?.into_list_mut()?[*index.to_u64_digits().1.get(0).unwrap_or(&0) as usize] = value.clone();
+            array.get_value_mut()?.into_list_mut()?.1
+                [*index.to_u64_digits().1.get(0).unwrap_or(&0) as usize] = Box::new(value);
         } else {
             self.current_symbol_table
                 .write()
                 .get_mut(&id)
                 .expect(format!("Unable to find variable {}!", id).as_str())
-                .try_assign(value.clone())?;
+                .try_assign(value)?;
         }
-        #[cfg(debug_assertions)]
-        println!("assign {id} {}", value);
         Ok(CrValue::Void)
     }
 
@@ -210,8 +212,8 @@ impl Interpreter {
     }
 
     fn visit_compile_unit(&mut self, statements: Vec<Box<AstNodes>>) -> Result<CrValue> {
-        for item in statements.iter() {
-            self.visit(item.clone())?;
+        for item in statements {
+            self.visit(item)?;
         }
         Ok(CrValue::Void)
     }
@@ -250,7 +252,7 @@ impl Interpreter {
 
     fn visit_read_var(&mut self, id: String) -> Result<CrValue> {
         if let Some(symbol) = self.current_symbol_table.read().get(&id) {
-            return symbol.get_value();
+            return symbol.get_value().cloned();
         }
         Err(Error::SymbolNotFound)
     }
@@ -272,11 +274,11 @@ impl Interpreter {
             "print" => {
                 self.print(args)?;
                 return Ok(CrValue::Void);
-            },
+            }
             "append" => {
                 self.append(args)?;
                 return Ok(CrValue::Void);
-            },
+            }
             "insert" => {
                 self.insert(args)?;
                 return Ok(CrValue::Void);
@@ -302,10 +304,10 @@ impl Interpreter {
                 let new_symbol_table = Arc::new(RwLock::new(SymbolTable::new(Some(
                     last_symbol_table.clone(),
                 ))));
-                for (name, value) in zip(params.iter(), args.iter()) {
+                for (name, value) in zip(params, args) {
                     new_symbol_table
                         .write()
-                        .insert(Symbol::Const(name.clone(), self.visit(value.clone())?));
+                        .insert(Symbol::Const(name, self.visit(value)?));
                 }
                 self.current_symbol_table = new_symbol_table;
                 for item in body {
@@ -313,7 +315,7 @@ impl Interpreter {
                         if let Error::Return(value) = error {
                             //println!("return with {:?}", value);
                             self.current_symbol_table = last_symbol_table;
-                            return Ok(value.clone());
+                            return Ok(value);
                         }
                         return Err(error);
                     }

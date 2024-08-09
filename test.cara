@@ -1,13 +1,15 @@
-var Ё = [0;5];
+var fib_numbers = [];
 
-for Ии in (0,5) {
-    print(Ё[Ии]);
-    Ё[Ии] = Ии+1;
+fn fib(n) {
+    append(fib_numbers,1);
+    append(fib_numbers,1);
+
+    for i in (2,n) {
+        append(fib_numbers,fib_numbers[i-1] + fib_numbers[i-2]);
+    }
 }
 
-var len = len(Ё);
+fib(10000);
 
-remove(Ё,len-1);
 
-print(Ё);
-print(len);
+

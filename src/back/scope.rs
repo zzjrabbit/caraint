@@ -30,10 +30,10 @@ impl Symbol {
         .clone()
     }
 
-    pub fn get_value(&self) -> Result<CrValue> {
+    pub fn get_value(&self) -> Result<&CrValue> {
         match self {
-            Symbol::Const(_, value) => Ok(value.clone()),
-            Symbol::Var(_, value) => Ok(value.clone()),
+            Symbol::Const(_, value) => Ok(value),
+            Symbol::Var(_, value) => Ok(value),
             Symbol::Function(_, _, _) => Err(Error::UseVoidValue),
         }
     }
