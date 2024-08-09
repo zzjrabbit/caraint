@@ -329,11 +329,29 @@ impl Parser {
     }
 
     fn parse_expr(&mut self) -> Box<AstNodes> {
+        let mut node = self.parse_eq_expr();
+        while let Some(current_token) = self.current_token.clone() {
+            if let Some(op) = current_token.as_operator() {
+                match op {
+                    '|'|'&' => {
+                        self.advance();
+                        node = Box::new(AstNodes::BinaryOp(node, op, self.parse_eq_expr()));
+                    }
+                    _ => break,
+                }
+            } else {
+                break;
+            }
+        }
+        node
+    }
+
+    fn parse_eq_expr(&mut self) -> Box<AstNodes> {
         let mut node = self.parse_add_expr();
         while let Some(current_token) = self.current_token.clone() {
             if let Some(op) = current_token.as_operator() {
                 match op {
-                    'e' => {
+                    'e'|'n'|'g'|'l'|'<'|'>' => {
                         self.advance();
                         node = Box::new(AstNodes::BinaryOp(node, op, self.parse_add_expr()));
                     }
@@ -369,7 +387,7 @@ impl Parser {
         while let Some(current_token) = self.current_token.clone() {
             if let Some(op) = current_token.as_operator() {
                 match op {
-                    '*' | '/' => {
+                    '*' | '/' | '%' => {
                         self.advance();
                         node = Box::new(AstNodes::BinaryOp(node, op, self.parse_factor()));
                     }

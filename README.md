@@ -4,11 +4,11 @@ This is a simple and stupid programming language, which is written with pure rus
 
 ## About
 
-This interpreter can run on any platform which supports filesystem operations and memory allocation and deallocation.
+This interpreter can run on any platform which supports filesystem operations and memory allocation and deallocation. It's nearly as fast as the Python Programming Language.
 
 ## Example
 
-```cara
+```cara {"id":"01J4TFQX7SZQNX28QWXY971H36"}
 var test_array = [0;5];
 
 for i in (0,5) {

@@ -207,6 +207,14 @@ impl Interpreter {
             '*' => left * right,
             '/' => left / right,
             'e' => BigInt::from((left == right) as u8),
+            'n' => BigInt::from((left != right) as u8),
+            'l' => BigInt::from((left <= right) as u8),
+            'g' => BigInt::from((left >= right) as u8),
+            '<' => BigInt::from((left < right) as u8),
+            '>' => BigInt::from((left > right) as u8),
+            '|' => BigInt::from((left > BigInt::ZERO || right > BigInt::ZERO) as u8),
+            '&' => BigInt::from((left > BigInt::ZERO && right > BigInt::ZERO) as u8),
+            '%' => left % right,
             _ => return Err(Error::UnknownOperator),
         }))
     }

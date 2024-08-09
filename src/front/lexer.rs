@@ -145,6 +145,41 @@ impl Lexer {
                     return Some(Token::Assign);
                     
                 },
+                '!' => {
+                    if self.current_char() == '=' {
+                        self.advance();
+                        return Some(Token::Operator('n'));
+                    }
+                    panic!("Unexpected charactor {}!", ch)
+                }
+                '>' => {
+                    if self.current_char() == '=' {
+                        self.advance();
+                        return Some(Token::Operator('g'));
+                    }
+                    return Some(Token::Operator('>'));
+                }
+                '<' => {
+                    if self.current_char() == '=' {
+                        self.advance();
+                        return Some(Token::Operator('l'));
+                    }
+                    return Some(Token::Operator('<'));
+                }
+                '|' => {
+                    if self.current_char() == '|' {
+                        self.advance();
+                        return Some(Token::Operator('|'));
+                    }
+                    panic!("Unexpected charactor {}!", ch)
+                }
+                '&' => {
+                    if self.current_char() == '&' {
+                        self.advance();
+                        return Some(Token::Operator('&'));
+                    }
+                    panic!("Unexpected charactor {}!", ch)
+                }
                 ';' => return Some(Token::Semi),
                 '{' => return Some(Token::LBrace),
                 '}' => return Some(Token::RBrace),
