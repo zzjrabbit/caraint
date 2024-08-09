@@ -15,7 +15,7 @@ pub enum AstNodes {
     Call(String, Vec<Box<AstNodes>>),
     Return(Box<AstNodes>),
     If(Box<AstNodes>, Vec<Box<AstNodes>>, Vec<Box<AstNodes>>),
-    For(String, Box<AstNodes>, Box<AstNodes>, Vec<Box<AstNodes>>),
+    For(String, Box<AstNodes>, Box<AstNodes>, Box<AstNodes>, Vec<Box<AstNodes>>),
     List(Vec<Box<AstNodes>>),
     TemplateList(Box<AstNodes>, Box<AstNodes>),
     Index(String, Box<AstNodes>),

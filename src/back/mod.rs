@@ -61,7 +61,7 @@ impl Interpreter {
             AstNodes::If(condition, then_block, else_block) => {
                 self.visit_if(condition, then_block, else_block)
             }
-            AstNodes::For(variable, start, end, body) => self.visit_for(variable, start, end, body),
+            AstNodes::For(variable, start, end,step, body) => self.visit_for(variable, start, end, step, body),
             AstNodes::List(value_list) => self.visit_list(value_list),
             AstNodes::Index(id, index) => self.visit_index(id, index),
             AstNodes::TemplateList(template, num) => self.visit_template_list(template, num),
@@ -151,14 +151,17 @@ impl Interpreter {
         variable: String,
         start: Box<AstNodes>,
         end: Box<AstNodes>,
+        step: Box<AstNodes>,
         body: Vec<Box<AstNodes>>,
     ) -> Result<CrValue> {
         let start = self.visit(start)?.into_int()?;
         let end = self.visit(end)?.into_int()?;
+        let step = self.visit(step)?.into_int()?;
 
         let need = *(end - start.clone()).to_u64_digits().1.get(0).unwrap_or(&0) as usize;
+        let step = *step.to_u64_digits().1.get(0).unwrap_or(&0) as usize;
 
-        for pos in 0..need {
+        for pos in (0..need).step_by(step) {
             let last_symbol_table = self.current_symbol_table.clone();
             let temp_symbol_table = Arc::new(RwLock::new(SymbolTable::new(Some(
                 last_symbol_table.clone(),

@@ -1,3 +1,5 @@
+use num_bigint::BigInt;
+
 use crate::ast::*;
 
 use super::{KeywordTypes, Lexer, Token};
@@ -197,13 +199,21 @@ impl Parser {
         let start = self.parse_expr();
         self.eat(Token::Comma);
         let end = self.parse_expr();
+
+        let step = if let Some(Token::Comma) = self.current_token {
+            self.advance();
+            self.parse_expr()
+        } else {
+            Box::new(AstNodes::Number(BigInt::from(1)))
+        };
+
         self.eat(Token::RParen);
 
         self.eat(Token::LBrace);
         let body = self.parse_block();
         self.eat(Token::RBrace);
 
-        Box::new(AstNodes::For(variable, start, end, body))
+        Box::new(AstNodes::For(variable, start, end, step, body))
     }
 
     fn parse_if(&mut self) -> Box<AstNodes> {

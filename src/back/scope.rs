@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, sync::Arc};
+use std::sync::Arc;
 
 use spin::RwLock;
 
@@ -52,24 +52,24 @@ impl Symbol {
 
 #[derive(Debug, Clone)]
 pub struct SymbolTable {
-    symbols: BTreeMap<String,Symbol>,
+    symbols: Vec<Symbol>,
     father: Option<Arc<RwLock<Self>>>,
 }
 
 impl SymbolTable {
     pub fn new(father: Option<Arc<RwLock<Self>>>) -> Self {
         Self {
-            symbols: BTreeMap::new(),
+            symbols: Vec::new(),
             father,
         }
     }
 
     pub fn insert(&mut self, symbol: Symbol) {
-        self.symbols.insert(symbol.get_id().clone(), symbol);
+        self.symbols.push(symbol);
     }
 
     pub fn get(&self, id: &str) -> Option<&Symbol> {
-        if let Some(symbol) = self.symbols.get(id) {
+        if let Some(symbol) = self.symbols.iter().find(|s| s.get_id() == id) {
             Some(symbol)
         } else if self.father.is_some() {
             self.father
@@ -84,7 +84,7 @@ impl SymbolTable {
     }
 
     pub fn get_mut(&mut self, id: &str) -> Option<&mut Symbol> {
-        if let Some(symbol) = self.symbols.get_mut(id) {
+        if let Some(symbol) = self.symbols.iter_mut().find(|s| s.get_id() == id) {
             Some(symbol)
         } else if self.father.is_some() {
             self.father
