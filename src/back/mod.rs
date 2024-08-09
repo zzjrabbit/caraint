@@ -1,5 +1,6 @@
+use alloc::{borrow::ToOwned, format, rc::Rc, string::String, vec::Vec};
+use core::{cell::RefCell, iter::zip};
 use num_bigint::BigInt;
-use std::{cell::RefCell, iter::zip, rc::Rc};
 use value::CrValue;
 
 use crate::ast::AstNodes;
@@ -87,13 +88,13 @@ impl Interpreter {
         condition: &Rc<AstNodes>,
         body: &Vec<Rc<AstNodes>>,
     ) -> Result<CrValue> {
-        while self.visit(condition)?.into_int()? > BigInt::ZERO {
-            let last_symbol_table = self.current_symbol_table.to_owned();
-            let temp_symbol_table = Rc::new(RefCell::new(SymbolTable::new(Some(
-                last_symbol_table.clone(),
-            ))));
+        let last_symbol_table = self.current_symbol_table.to_owned();
+        let temp_symbol_table = Rc::new(RefCell::new(SymbolTable::new(Some(
+            last_symbol_table.clone(),
+        ))));
 
-            self.current_symbol_table = temp_symbol_table;
+        while self.visit(condition)?.into_int()? > BigInt::ZERO {
+            self.current_symbol_table = temp_symbol_table.clone();
             for item in body {
                 if let Err(error) = self.visit(item) {
                     match error {
@@ -103,7 +104,8 @@ impl Interpreter {
                     }
                 }
             }
-            self.current_symbol_table = last_symbol_table;
+            self.current_symbol_table = last_symbol_table.clone();
+            last_symbol_table.borrow_mut().clear();
         }
         Ok(CrValue::Void)
     }
@@ -164,6 +166,11 @@ impl Interpreter {
             .unwrap_or(&0) as usize;
         let step = *step.to_u64_digits().1.get(0).unwrap_or(&0) as usize;
 
+        let last_symbol_table = self.current_symbol_table.to_owned();
+        let temp_symbol_table = Rc::new(RefCell::new(SymbolTable::new(Some(
+            last_symbol_table.clone(),
+        ))));
+
         for pos in (0..need).step_by(step) {
             let num = start.clone() + pos;
 
@@ -171,15 +178,10 @@ impl Interpreter {
                 break;
             }
 
-            let last_symbol_table = self.current_symbol_table.to_owned();
-            let temp_symbol_table = Rc::new(RefCell::new(SymbolTable::new(Some(
-                last_symbol_table.clone(),
-            ))));
-
             let value = Symbol::Const(variable.clone(), CrValue::Number(num));
             temp_symbol_table.borrow_mut().insert(value);
 
-            self.current_symbol_table = temp_symbol_table;
+            self.current_symbol_table = temp_symbol_table.clone();
             for item in body {
                 if let Err(error) = self.visit(item) {
                     match error {
@@ -189,7 +191,8 @@ impl Interpreter {
                     }
                 }
             }
-            self.current_symbol_table = last_symbol_table;
+            self.current_symbol_table = last_symbol_table.clone();
+            temp_symbol_table.borrow_mut().clear();
         }
         Ok(CrValue::Void)
     }

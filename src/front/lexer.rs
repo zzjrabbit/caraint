@@ -1,3 +1,5 @@
+use alloc::string::String;
+
 use num_bigint::BigInt;
 
 /// This enum defines all the token types with their values

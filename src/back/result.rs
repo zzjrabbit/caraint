@@ -1,4 +1,4 @@
-use std::fmt;
+use core::fmt;
 
 use super::value::CrValue;
 
@@ -50,4 +50,4 @@ impl fmt::Debug for Error {
 }
 
 /// Result type of IR generator.
-pub type Result<T> = std::result::Result<T, Error>;
+pub type Result<T> = core::result::Result<T, Error>;

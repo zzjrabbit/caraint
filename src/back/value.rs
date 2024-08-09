@@ -1,4 +1,5 @@
-use std::{fmt::Display, rc::Rc};
+use core::fmt::Display;
+use alloc::{rc::Rc,string::String,vec::Vec};
 
 use num_bigint::BigInt;
 
@@ -14,7 +15,7 @@ pub enum CrValue {
 }
 
 impl Display for CrValue {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::Number(number) => write!(f, "{}", number),
             Self::Function(_, _) => write!(f, "function"),

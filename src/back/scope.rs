@@ -1,4 +1,5 @@
-use std::{cell::RefCell, collections::BTreeMap, rc::Rc};
+use core::cell::RefCell;
+use alloc::{collections::BTreeMap, rc::Rc, string::String,vec::Vec};
 
 use super::{
     result::{Error, Result},
@@ -22,13 +23,12 @@ impl Symbol {
         }
     }
 
-    pub fn get_id(&self) -> String {
+    pub fn get_id(&self) -> &str {
         match self {
             Symbol::Const(id, _) => id,
             Symbol::Var(id, _) => id,
             Symbol::Function(id, _, _) => id,
         }
-        .clone()
     }
 
     pub fn get_value(&self) -> Result<&CrValue> {
@@ -63,7 +63,11 @@ impl SymbolTable {
     }
 
     pub fn insert(&mut self, symbol: Symbol) {
-        self.symbols.insert(symbol.get_id(), symbol);
+        self.symbols.insert(String::from(symbol.get_id()), symbol);
+    }
+
+    pub fn clear(&mut self) {
+        self.symbols.clear();
     }
 }
 
