@@ -1,6 +1,4 @@
-use std::sync::Arc;
-
-use spin::RwLock;
+use std::{cell::RefCell, collections::BTreeMap, rc::Rc};
 
 use super::{
     result::{Error, Result},
@@ -12,7 +10,7 @@ use crate::ast::AstNodes;
 pub enum Symbol {
     Const(String, CrValue),
     Var(String, CrValue),
-    Function(String, Vec<String>, Vec<Box<AstNodes>>),
+    Function(String, Vec<String>, Vec<Rc<AstNodes>>),
 }
 
 impl Symbol {
@@ -52,49 +50,134 @@ impl Symbol {
 
 #[derive(Debug, Clone)]
 pub struct SymbolTable {
-    symbols: Vec<Symbol>,
-    father: Option<Arc<RwLock<Self>>>,
+    symbols: BTreeMap<String,Symbol>,
+    father: Option<Rc<RefCell<Self>>>,
 }
 
 impl SymbolTable {
-    pub fn new(father: Option<Arc<RwLock<Self>>>) -> Self {
+    pub fn new(father: Option<Rc<RefCell<Self>>>) -> Self {
         Self {
-            symbols: Vec::new(),
+            symbols: BTreeMap::new(),
             father,
         }
     }
 
     pub fn insert(&mut self, symbol: Symbol) {
-        self.symbols.push(symbol);
+        self.symbols.insert(symbol.get_id(), symbol);
     }
+}
 
-    pub fn get(&self, id: &str) -> Option<&Symbol> {
-        if let Some(symbol) = self.symbols.iter().find(|s| s.get_id() == id) {
-            Some(symbol)
-        } else if self.father.is_some() {
-            self.father
-                .as_ref()
-                .unwrap()
-                .read()
-                .get(id)
-                .map(|v| unsafe { &*(v as *const Symbol) })
+impl SymbolTable {
+    #[inline]
+    pub fn symbol_clone(&self, id: &str) -> Result<Symbol> {
+        if let Some(symbol) = self.symbols.get(id) {
+            Ok(symbol.clone())
+        } else if let Some(father) = &self.father {
+            father.borrow().symbol_clone(id)
         } else {
-            None
+            Err(Error::SymbolNotFound)
         }
     }
 
-    pub fn get_mut(&mut self, id: &str) -> Option<&mut Symbol> {
-        if let Some(symbol) = self.symbols.iter_mut().find(|s| s.get_id() == id) {
-            Some(symbol)
-        } else if self.father.is_some() {
-            self.father
-                .as_mut()
-                .unwrap()
-                .write()
-                .get_mut(id)
-                .map(|v| unsafe { &mut *(v as *mut Symbol) })
+    #[inline]
+    pub fn symbol_clone_value(&self, id: &str) -> Result<CrValue> {
+        if let Some(symbol) = self.symbols.get(id) {
+            Ok(symbol.get_value()?.clone())
+        } else if let Some(father) = &self.father {
+            father.borrow().symbol_clone_value(id)
         } else {
-            None
+            Err(Error::SymbolNotFound)
+        }
+    }
+
+    #[inline]
+    pub fn symbol_crvalue_len(&self, id: &str) -> Result<usize> {
+        if let Some(symbol) = self.symbols.get(id) {
+            let (_, list) = symbol.get_value()?.into_list()?;
+            Ok(list.len())
+        } else if let Some(father) = &self.father {
+            father.borrow().symbol_crvalue_len(id)
+        } else {
+            Err(Error::SymbolNotFound)
+        }
+    }
+
+    #[inline]
+    pub fn symbol_crvalue_list_item(&self, id: &str, index: usize) -> Result<CrValue> {
+        if let Some(symbol) = self.symbols.get(id) {
+            let (_, list) = symbol.get_value()?.into_list()?;
+            Ok((*list[index]).clone())
+        } else if let Some(father) = &self.father {
+            father.borrow().symbol_crvalue_list_item(id, index)
+        } else {
+            Err(Error::SymbolNotFound)
+        }
+    }
+
+    #[inline]
+    pub fn symbol_assign(&mut self, id: &str, value: CrValue) -> Result<()> {
+        if let Some(symbol) = self.symbols.get_mut(id) {
+            symbol.try_assign(value)?;
+        } else if let Some(father) = &self.father {
+            father.borrow_mut().symbol_assign(id, value)?;
+        }
+        Ok(())
+    }
+
+    #[inline]
+    pub fn symbol_list_append(&mut self, id: &str, value: CrValue) -> Result<()> {
+        if let Some(symbol) = self.symbols.get_mut(id) {
+            let (start_len, list) = symbol.get_value_mut()?.into_list_mut()?;
+
+            list.push(Rc::new(value));
+
+            if list.len() > *start_len * 2 {
+                *start_len = list.len() * 2;
+                let _ = list.try_reserve(list.len() * 2);
+            }
+        } else if let Some(father) = &self.father {
+            father.borrow_mut().symbol_list_append(id, value)?;
+        }
+        Ok(())
+    }
+
+    #[inline]
+    pub fn symbol_list_insert(&mut self, id: &str, index: usize, value: CrValue) -> Result<()> {
+        if let Some(symbol) = self.symbols.get_mut(id) {
+            let (start_len, list) = symbol.get_value_mut()?.into_list_mut()?;
+
+            list.insert(index, Rc::new(value));
+
+            if list.len() > *start_len * 2 {
+                *start_len = list.len() * 2;
+                let _ = list.try_reserve(list.len() * 2);
+            }
+        } else if let Some(father) = &self.father {
+            father.borrow_mut().symbol_list_insert(id, index, value)?;
+        }
+        Ok(())
+    }
+
+    #[inline]
+    pub fn symbol_list_modify(&mut self, id: &str, index: usize, value: CrValue) -> Result<()> {
+        if let Some(symbol) = self.symbols.get_mut(id) {
+            let (_, list) = symbol.get_value_mut()?.into_list_mut()?;
+            list[index] = Rc::new(value);
+        } else if let Some(father) = &self.father {
+            father.borrow_mut().symbol_list_modify(id, index, value)?;
+        }
+        Ok(())
+    }
+
+    #[inline]
+    pub fn symbol_list_remove(&mut self, id: &str, index: usize) -> Result<Rc<CrValue>> {
+        if let Some(symbol) = self.symbols.get_mut(id) {
+            let (_, list) = symbol.get_value_mut()?.into_list_mut()?;
+            Ok(list.remove(index as usize))
+        } else if let Some(father) = &self.father {
+            Ok(father.borrow_mut().symbol_list_remove(id, index)?)
+        } else {
+            Err(Error::SymbolNotFound)
         }
     }
 }

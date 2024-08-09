@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use num_bigint::BigInt;
 
 use crate::ast::*;
@@ -101,15 +103,15 @@ impl Parser {
     ///     ),
     /// )*/
     /// ```
-    pub fn parse_compile_unit(&mut self) -> Box<AstNodes> {
+    pub fn parse_compile_unit(&mut self) -> Rc<AstNodes> {
         let mut children = Vec::new();
         while let Some(_) = self.current_token {
             children.push(self.parse_statement());
         }
-        Box::new(AstNodes::CompileUnit(children))
+        Rc::new(AstNodes::CompileUnit(children))
     }
 
-    fn parse_statement(&mut self) -> Box<AstNodes> {
+    fn parse_statement(&mut self) -> Rc<AstNodes> {
         if let Some(current_token) = self.current_token.clone() {
             match current_token {
                 Token::Keyword(key_word) => {
@@ -139,26 +141,26 @@ impl Parser {
         panic!("Nothing to parse!");
     }
 
-    fn parse_break(&mut self) -> Box<AstNodes> {
+    fn parse_break(&mut self) -> Rc<AstNodes> {
         self.advance();
-        Box::new(AstNodes::Break)
+        Rc::new(AstNodes::Break)
     }
 
-    fn parse_continue(&mut self) -> Box<AstNodes> {
+    fn parse_continue(&mut self) -> Rc<AstNodes> {
         self.advance();
-        Box::new(AstNodes::Continue)
+        Rc::new(AstNodes::Continue)
     }
 
-    fn parse_while(&mut self) -> Box<AstNodes> {
+    fn parse_while(&mut self) -> Rc<AstNodes> {
         self.advance();
         let condition = self.parse_expr();
         self.eat(Token::LBrace);
         let body = self.parse_block();
         self.eat(Token::RBrace);
-        Box::new(AstNodes::While(condition, body))
+        Rc::new(AstNodes::While(condition, body))
     }
 
-    fn parse_list(&mut self) -> Box<AstNodes> {
+    fn parse_list(&mut self) -> Rc<AstNodes> {
         self.eat(Token::LBracket);
         let mut value_list = Vec::new();
 
@@ -170,7 +172,7 @@ impl Parser {
                 self.advance();
                 let num = self.parse_expr();
                 self.eat(Token::RBracket);
-                return Box::new(AstNodes::TemplateList(first_value, num));
+                return Rc::new(AstNodes::TemplateList(first_value, num));
             } else {
                 value_list.push(first_value.clone());
                 while let Some(token) = self.current_token.clone() {
@@ -185,10 +187,10 @@ impl Parser {
         }
 
         self.eat(Token::RBracket);
-        Box::new(AstNodes::List(value_list))
+        Rc::new(AstNodes::List(value_list))
     }
 
-    fn parse_for(&mut self) -> Box<AstNodes> {
+    fn parse_for(&mut self) -> Rc<AstNodes> {
         self.advance();
 
         let variable = self.eat(Token::Id("".into())).as_ident().unwrap();
@@ -204,7 +206,7 @@ impl Parser {
             self.advance();
             self.parse_expr()
         } else {
-            Box::new(AstNodes::Number(BigInt::from(1)))
+            Rc::new(AstNodes::Number(BigInt::from(1)))
         };
 
         self.eat(Token::RParen);
@@ -213,10 +215,10 @@ impl Parser {
         let body = self.parse_block();
         self.eat(Token::RBrace);
 
-        Box::new(AstNodes::For(variable, start, end, step, body))
+        Rc::new(AstNodes::For(variable, start, end, step, body))
     }
 
-    fn parse_if(&mut self) -> Box<AstNodes> {
+    fn parse_if(&mut self) -> Rc<AstNodes> {
         self.advance();
         //self.eat(Token::LParen);
         let condition = self.parse_expr();
@@ -236,10 +238,10 @@ impl Parser {
             Vec::new()
         };
 
-        Box::new(AstNodes::If(condition, then_block, else_block))
+        Rc::new(AstNodes::If(condition, then_block, else_block))
     }
 
-    fn parse_block(&mut self) -> Vec<Box<AstNodes>> {
+    fn parse_block(&mut self) -> Vec<Rc<AstNodes>> {
         let mut children = Vec::new();
         while let Some(_) = self.current_token {
             if let Some(Token::RBrace) = self.current_token {
@@ -250,14 +252,14 @@ impl Parser {
         children
     }
 
-    fn parse_return(&mut self) -> Box<AstNodes> {
+    fn parse_return(&mut self) -> Rc<AstNodes> {
         self.advance();
         let expr = self.parse_expr();
         self.eat(Token::Semi);
-        Box::new(AstNodes::Return(expr))
+        Rc::new(AstNodes::Return(expr))
     }
 
-    fn parse_function(&mut self) -> Box<AstNodes> {
+    fn parse_function(&mut self) -> Rc<AstNodes> {
         self.advance();
         let id = self.eat(Token::Id("".into())).as_ident().unwrap();
 
@@ -278,7 +280,7 @@ impl Parser {
 
         self.eat(Token::RBrace);
 
-        Box::new(AstNodes::FunctionDef(id, params, body))
+        Rc::new(AstNodes::FunctionDef(id, params, body))
     }
 
     fn parse_params(&mut self) -> Vec<String> {
@@ -306,7 +308,7 @@ impl Parser {
         params
     }
 
-    fn parse_const(&mut self) -> Box<AstNodes> {
+    fn parse_const(&mut self) -> Rc<AstNodes> {
         self.advance();
 
         let id = self.eat(Token::Id("".into())).as_ident().unwrap();
@@ -317,10 +319,10 @@ impl Parser {
 
         self.eat(Token::Semi);
 
-        Box::new(AstNodes::ConstDef(id, init_val))
+        Rc::new(AstNodes::ConstDef(id, init_val))
     }
 
-    fn parse_var(&mut self) -> Box<AstNodes> {
+    fn parse_var(&mut self) -> Rc<AstNodes> {
         self.advance();
 
         let id = self.eat(Token::Id("".into())).as_ident().unwrap();
@@ -335,10 +337,10 @@ impl Parser {
 
         self.eat(Token::Semi);
 
-        Box::new(AstNodes::VarDef(id, init_val))
+        Rc::new(AstNodes::VarDef(id, init_val))
     }
 
-    fn parse_assign(&mut self) -> Box<AstNodes> {
+    fn parse_assign(&mut self) -> Rc<AstNodes> {
         let id = self.eat(Token::Id("".into())).as_ident().unwrap();
 
         let index = if let Some(Token::LBracket) = self.current_token {
@@ -356,17 +358,17 @@ impl Parser {
 
         self.eat(Token::Semi);
 
-        Box::new(AstNodes::Assign(id, index, expr))
+        Rc::new(AstNodes::Assign(id, index, expr))
     }
 
-    fn parse_expr(&mut self) -> Box<AstNodes> {
+    fn parse_expr(&mut self) -> Rc<AstNodes> {
         let mut node = self.parse_eq_expr();
         while let Some(current_token) = self.current_token.clone() {
             if let Some(op) = current_token.as_operator() {
                 match op {
                     "||" | "&&" => {
                         self.advance();
-                        node = Box::new(AstNodes::BinaryOp(node, op, self.parse_eq_expr()));
+                        node = Rc::new(AstNodes::BinaryOp(node, op, self.parse_eq_expr()));
                     }
                     _ => break,
                 }
@@ -377,14 +379,14 @@ impl Parser {
         node
     }
 
-    fn parse_eq_expr(&mut self) -> Box<AstNodes> {
+    fn parse_eq_expr(&mut self) -> Rc<AstNodes> {
         let mut node = self.parse_add_expr();
         while let Some(current_token) = self.current_token.clone() {
             if let Some(op) = current_token.as_operator() {
                 match op {
                     "==" | "!=" | ">=" | "<=" | "<" | ">" => {
                         self.advance();
-                        node = Box::new(AstNodes::BinaryOp(node, op, self.parse_add_expr()));
+                        node = Rc::new(AstNodes::BinaryOp(node, op, self.parse_add_expr()));
                     }
                     _ => break,
                 }
@@ -395,14 +397,14 @@ impl Parser {
         node
     }
 
-    fn parse_add_expr(&mut self) -> Box<AstNodes> {
+    fn parse_add_expr(&mut self) -> Rc<AstNodes> {
         let mut node = self.parse_move_expr();
         while let Some(current_token) = self.current_token.clone() {
             if let Some(op) = current_token.as_operator() {
                 match op {
                     "+" | "-" => {
                         self.advance();
-                        node = Box::new(AstNodes::BinaryOp(node, op, self.parse_move_expr()));
+                        node = Rc::new(AstNodes::BinaryOp(node, op, self.parse_move_expr()));
                     }
                     _ => break,
                 }
@@ -413,14 +415,14 @@ impl Parser {
         node
     }
 
-    fn parse_move_expr(&mut self) -> Box<AstNodes> {
+    fn parse_move_expr(&mut self) -> Rc<AstNodes> {
         let mut node = self.parse_term();
         while let Some(current_token) = self.current_token.clone() {
             if let Some(op) = current_token.as_operator() {
                 match op {
                     "<<" | ">>" => {
                         self.advance();
-                        node = Box::new(AstNodes::BinaryOp(node, op, self.parse_term()));
+                        node = Rc::new(AstNodes::BinaryOp(node, op, self.parse_term()));
                     }
                     _ => break,
                 }
@@ -431,14 +433,14 @@ impl Parser {
         node
     }
 
-    fn parse_term(&mut self) -> Box<AstNodes> {
+    fn parse_term(&mut self) -> Rc<AstNodes> {
         let mut node = self.parse_factor();
         while let Some(current_token) = self.current_token.clone() {
             if let Some(op) = current_token.as_operator() {
                 match op {
                     "*" | "/" | "%" => {
                         self.advance();
-                        node = Box::new(AstNodes::BinaryOp(node, op, self.parse_factor()));
+                        node = Rc::new(AstNodes::BinaryOp(node, op, self.parse_factor()));
                     }
                     _ => break,
                 }
@@ -449,12 +451,12 @@ impl Parser {
         node
     }
 
-    fn parse_factor(&mut self) -> Box<AstNodes> {
+    fn parse_factor(&mut self) -> Rc<AstNodes> {
         let token = self.current_token.clone().unwrap();
         match token {
             Token::Number(num) => {
                 self.advance();
-                Box::new(AstNodes::Number(num))
+                Rc::new(AstNodes::Number(num))
             }
             Token::LParen => {
                 self.advance();
@@ -466,7 +468,7 @@ impl Parser {
                 "+" | "-" => {
                     self.advance();
                     let node = self.parse_expr();
-                    Box::new(AstNodes::UnaryOp(op, node))
+                    Rc::new(AstNodes::UnaryOp(op, node))
                 }
                 _ => panic!("Unexpected unary operator {}!", op),
             },
@@ -480,17 +482,17 @@ impl Parser {
                     self.advance();
                     let index_value = self.parse_expr();
                     self.eat(Token::RBracket);
-                    Box::new(AstNodes::Index(id, index_value))
+                    Rc::new(AstNodes::Index(id, index_value))
                 } else {
                     self.advance();
-                    Box::new(AstNodes::ReadVar(id))
+                    Rc::new(AstNodes::ReadVar(id))
                 }
             }
             _ => panic!("Syntax error {:?}!", token),
         }
     }
 
-    fn parse_call(&mut self, stmt: bool) -> Box<AstNodes> {
+    fn parse_call(&mut self, stmt: bool) -> Rc<AstNodes> {
         let id = self.eat(Token::Id("".into())).as_ident().unwrap();
 
         self.eat(Token::LParen);
@@ -503,10 +505,10 @@ impl Parser {
             self.eat(Token::Semi);
         }
 
-        Box::new(AstNodes::Call(id, args))
+        Rc::new(AstNodes::Call(id, args))
     }
 
-    fn parse_args(&mut self) -> Vec<Box<AstNodes>> {
+    fn parse_args(&mut self) -> Vec<Rc<AstNodes>> {
         let mut args = Vec::new();
         while let Some(current_token) = self.current_token.clone() {
             if current_token != Token::RParen {

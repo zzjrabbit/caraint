@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, rc::Rc};
 
 use num_bigint::BigInt;
 
@@ -8,8 +8,8 @@ use crate::ast::AstNodes;
 #[derive(Debug, Clone)]
 pub enum CrValue {
     Number(BigInt),
-    Function(Vec<String>, Vec<Box<AstNodes>>),
-    List(usize, Vec<Box<CrValue>>),
+    Function(Vec<String>, Vec<Rc<AstNodes>>),
+    List(usize, Vec<Rc<CrValue>>),
     Void,
 }
 
@@ -39,14 +39,14 @@ impl CrValue {
         }
     }
 
-    pub fn into_list(&self) -> Result<(usize, &Vec<Box<CrValue>>)> {
+    pub fn into_list(&self) -> Result<(usize, &Vec<Rc<CrValue>>)> {
         match self {
             CrValue::List(start_len, list) => Ok((*start_len, list)),
             _ => Err(Error::UseVoidValue),
         }
     }
 
-    pub fn into_list_mut(&mut self) -> Result<(&mut usize, &mut Vec<Box<CrValue>>)> {
+    pub fn into_list_mut(&mut self) -> Result<(&mut usize, &mut Vec<Rc<CrValue>>)> {
         match self {
             CrValue::List(start_len, list) => Ok((start_len, list)),
             _ => Err(Error::UseVoidValue),

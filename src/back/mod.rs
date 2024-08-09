@@ -1,6 +1,5 @@
 use num_bigint::BigInt;
-use spin::RwLock;
-use std::{iter::zip, sync::Arc};
+use std::{cell::RefCell, iter::zip, rc::Rc};
 use value::CrValue;
 
 use crate::ast::AstNodes;
@@ -12,9 +11,11 @@ mod result;
 mod scope;
 mod value;
 
+pub use builtins::set_printer;
+
 /// The interpreter
 pub struct Interpreter {
-    current_symbol_table: Arc<RwLock<SymbolTable>>,
+    current_symbol_table: Rc<RefCell<SymbolTable>>,
 }
 
 impl Interpreter {
@@ -26,7 +27,7 @@ impl Interpreter {
     /// ```
     pub fn new() -> Self {
         Self {
-            current_symbol_table: Arc::new(RwLock::new(SymbolTable::new(None))),
+            current_symbol_table: Rc::new(RefCell::new(SymbolTable::new(None))),
         }
     }
 }
@@ -45,8 +46,8 @@ impl Interpreter {
     /// let mut interpreter = Interpreter::new();
     /// assert_eq!(interpreter.visit(node),2);
     /// ```
-    pub fn visit(&mut self, node: Box<AstNodes>) -> Result<CrValue> {
-        match *node {
+    pub fn visit(&mut self, node: &Rc<AstNodes>) -> Result<CrValue> {
+        match node.as_ref() {
             AstNodes::Assign(id, index, value) => self.visit_assign(id, index, value),
             AstNodes::BinaryOp(left, op, right) => self.visit_binary_op(left, op, right),
             AstNodes::CompileUnit(statements) => self.visit_compile_unit(statements),
@@ -61,7 +62,9 @@ impl Interpreter {
             AstNodes::If(condition, then_block, else_block) => {
                 self.visit_if(condition, then_block, else_block)
             }
-            AstNodes::For(variable, start, end,step, body) => self.visit_for(variable, start, end, step, body),
+            AstNodes::For(variable, start, end, step, body) => {
+                self.visit_for(variable, start, end, step, body)
+            }
             AstNodes::List(value_list) => self.visit_list(value_list),
             AstNodes::Index(id, index) => self.visit_index(id, index),
             AstNodes::TemplateList(template, num) => self.visit_template_list(template, num),
@@ -81,18 +84,18 @@ impl Interpreter {
 
     fn visit_while(
         &mut self,
-        condition: Box<AstNodes>,
-        body: Vec<Box<AstNodes>>,
+        condition: &Rc<AstNodes>,
+        body: &Vec<Rc<AstNodes>>,
     ) -> Result<CrValue> {
-        while self.visit(condition.clone())?.into_int()? > BigInt::ZERO {
-            let last_symbol_table = self.current_symbol_table.clone();
-            let temp_symbol_table = Arc::new(RwLock::new(SymbolTable::new(Some(
+        while self.visit(condition)?.into_int()? > BigInt::ZERO {
+            let last_symbol_table = self.current_symbol_table.to_owned();
+            let temp_symbol_table = Rc::new(RefCell::new(SymbolTable::new(Some(
                 last_symbol_table.clone(),
             ))));
 
             self.current_symbol_table = temp_symbol_table;
-            for item in &body {
-                if let Err(error) = self.visit(item.clone()) {
+            for item in body {
+                if let Err(error) = self.visit(item) {
                     match error {
                         Error::Break => return Ok(CrValue::Void),
                         Error::Continue => break,
@@ -105,25 +108,21 @@ impl Interpreter {
         Ok(CrValue::Void)
     }
 
-    fn visit_index(&mut self, id: String, index: Box<AstNodes>) -> Result<CrValue> {
+    fn visit_index(&mut self, id: &String, index: &Rc<AstNodes>) -> Result<CrValue> {
         let index = self.visit(index)?.into_int()?;
-        if let Some(symbol) = self.current_symbol_table.write().get(&id) {
-            let array = symbol.get_value()?;
-            Ok(
-                *array.into_list()?.1[*index.to_u64_digits().1.get(0).unwrap_or(&0) as usize]
-                    .clone(),
-            )
-        } else {
-            Err(Error::SymbolNotFound)
-        }
+        let index = *index.to_u64_digits().1.get(0).unwrap_or(&0) as usize;
+        Ok(self
+            .current_symbol_table
+            .borrow()
+            .symbol_crvalue_list_item(&id, index)?)
     }
 
     fn visit_template_list(
         &mut self,
-        template: Box<AstNodes>,
-        num: Box<AstNodes>,
+        template: &Rc<AstNodes>,
+        num: &Rc<AstNodes>,
     ) -> Result<CrValue> {
-        let template_value = Box::new(self.visit(template)?);
+        let template_value = Rc::new(self.visit(template)?);
         let num = *self
             .visit(num)?
             .into_int()?
@@ -138,43 +137,51 @@ impl Interpreter {
         Ok(CrValue::List(num as usize, values))
     }
 
-    fn visit_list(&mut self, value_list: Vec<Box<AstNodes>>) -> Result<CrValue> {
+    fn visit_list(&mut self, value_list: &Vec<Rc<AstNodes>>) -> Result<CrValue> {
         let mut values = Vec::with_capacity(value_list.len());
         for value in value_list {
-            values.push(Box::new(self.visit(value)?));
+            values.push(Rc::new(self.visit(value)?));
         }
         Ok(CrValue::List(values.len(), values))
     }
 
     fn visit_for(
         &mut self,
-        variable: String,
-        start: Box<AstNodes>,
-        end: Box<AstNodes>,
-        step: Box<AstNodes>,
-        body: Vec<Box<AstNodes>>,
+        variable: &String,
+        start: &Rc<AstNodes>,
+        end: &Rc<AstNodes>,
+        step: &Rc<AstNodes>,
+        body: &Vec<Rc<AstNodes>>,
     ) -> Result<CrValue> {
-        let start = self.visit(start)?.into_int()?;
-        let end = self.visit(end)?.into_int()?;
-        let step = self.visit(step)?.into_int()?;
+        let start = self.visit(&start)?.into_int()?;
+        let end = self.visit(&end)?.into_int()?;
+        let step = self.visit(&step)?.into_int()?;
 
-        let need = *(end - start.clone()).to_u64_digits().1.get(0).unwrap_or(&0) as usize;
+        let need = *(end.clone() - start.clone())
+            .to_u64_digits()
+            .1
+            .get(0)
+            .unwrap_or(&0) as usize;
         let step = *step.to_u64_digits().1.get(0).unwrap_or(&0) as usize;
 
         for pos in (0..need).step_by(step) {
-            let last_symbol_table = self.current_symbol_table.clone();
-            let temp_symbol_table = Arc::new(RwLock::new(SymbolTable::new(Some(
+            let num = start.clone() + pos;
+
+            if num > end {
+                break;
+            }
+
+            let last_symbol_table = self.current_symbol_table.to_owned();
+            let temp_symbol_table = Rc::new(RefCell::new(SymbolTable::new(Some(
                 last_symbol_table.clone(),
             ))));
 
-            temp_symbol_table.write().insert(Symbol::Const(
-                variable.clone(),
-                CrValue::Number(start.clone() + pos),
-            ));
+            let value = Symbol::Const(variable.clone(), CrValue::Number(num));
+            temp_symbol_table.borrow_mut().insert(value);
 
             self.current_symbol_table = temp_symbol_table;
-            for item in &body {
-                if let Err(error) = self.visit(item.clone()) {
+            for item in body {
+                if let Err(error) = self.visit(item) {
                     match error {
                         Error::Break => return Ok(CrValue::Void),
                         Error::Continue => break,
@@ -189,14 +196,14 @@ impl Interpreter {
 
     fn visit_if(
         &mut self,
-        condition: Box<AstNodes>,
-        then_block: Vec<Box<AstNodes>>,
-        else_block: Vec<Box<AstNodes>>,
+        condition: &Rc<AstNodes>,
+        then_block: &Vec<Rc<AstNodes>>,
+        else_block: &Vec<Rc<AstNodes>>,
     ) -> Result<CrValue> {
         let condition = self.visit(condition)?;
         if condition.into_int()? > BigInt::ZERO {
-            let last_symbol_table = self.current_symbol_table.clone();
-            let temp_symbol_table = Arc::new(RwLock::new(SymbolTable::new(Some(
+            let last_symbol_table = self.current_symbol_table.to_owned();
+            let temp_symbol_table = Rc::new(RefCell::new(SymbolTable::new(Some(
                 last_symbol_table.clone(),
             ))));
             self.current_symbol_table = temp_symbol_table;
@@ -204,8 +211,8 @@ impl Interpreter {
             self.current_symbol_table = last_symbol_table;
             ret
         } else {
-            let last_symbol_table = self.current_symbol_table.clone();
-            let temp_symbol_table = Arc::new(RwLock::new(SymbolTable::new(Some(
+            let last_symbol_table = self.current_symbol_table.to_owned();
+            let temp_symbol_table = Rc::new(RefCell::new(SymbolTable::new(Some(
                 last_symbol_table.clone(),
             ))));
             self.current_symbol_table = temp_symbol_table;
@@ -217,39 +224,35 @@ impl Interpreter {
 
     fn visit_assign(
         &mut self,
-        id: String,
-        index: Option<Box<AstNodes>>,
-        value: Box<AstNodes>,
+        id: &String,
+        index: &Option<Rc<AstNodes>>,
+        value: &Rc<AstNodes>,
     ) -> Result<CrValue> {
-        let value = self.visit(value)?;
+        let value = self.visit(&value)?;
         if let Some(index) = index {
             let index = self.visit(index)?.into_int()?;
-            let mut symbol_table = self.current_symbol_table.write();
-            let array = symbol_table
-                .get_mut(&id)
-                .expect(format!("Unable to find list variable {}!", id).as_str());
-            array.get_value_mut()?.into_list_mut()?.1
-                [*index.to_u64_digits().1.get(0).unwrap_or(&0) as usize] = Box::new(value);
+            let index = *index.to_u64_digits().1.get(0).unwrap_or(&0) as usize;
+            self.current_symbol_table
+                .borrow_mut()
+                .symbol_list_modify(&id, index, value)?;
         } else {
             self.current_symbol_table
-                .write()
-                .get_mut(&id)
-                .expect(format!("Unable to find variable {}!", id).as_str())
-                .try_assign(value)?;
+                .borrow_mut()
+                .symbol_assign(&id, value)?;
         }
         Ok(CrValue::Void)
     }
 
     fn visit_binary_op(
         &mut self,
-        left: Box<AstNodes>,
-        op: &'static str,
-        right: Box<AstNodes>,
+        left: &Rc<AstNodes>,
+        op: &&'static str,
+        right: &Rc<AstNodes>,
     ) -> Result<CrValue> {
-        let left = self.visit(left)?.into_int()?;
-        let right = self.visit(right)?.into_int()?;
+        let left = self.visit(&left)?.into_int()?;
+        let right = self.visit(&right)?.into_int()?;
 
-        Ok(CrValue::Number(match op {
+        Ok(CrValue::Number(match *op {
             "+" => left + right,
             "-" => left - right,
             "*" => left * right,
@@ -269,65 +272,59 @@ impl Interpreter {
         }))
     }
 
-    fn visit_compile_unit(&mut self, statements: Vec<Box<AstNodes>>) -> Result<CrValue> {
+    fn visit_compile_unit(&mut self, statements: &Vec<Rc<AstNodes>>) -> Result<CrValue> {
         for item in statements {
             self.visit(item)?;
         }
         Ok(CrValue::Void)
     }
 
-    fn visit_number(&mut self, num: BigInt) -> Result<CrValue> {
-        Ok(CrValue::Number(num))
+    fn visit_number(&mut self, num: &BigInt) -> Result<CrValue> {
+        Ok(CrValue::Number(num.clone()))
     }
 
-    fn visit_unary_op(&mut self, op: &'static str, val: Box<AstNodes>) -> Result<CrValue> {
-        let val = self.visit(val)?.into_int()?;
-        Ok(CrValue::Number(match op {
+    fn visit_unary_op(&mut self, op: &&'static str, val: &Rc<AstNodes>) -> Result<CrValue> {
+        let val = self.visit(&val)?.into_int()?;
+        Ok(CrValue::Number(match *op {
             "-" => -val,
             _ => val,
         }))
     }
 
-    fn visit_const_def(&mut self, id: String, const_value: Box<AstNodes>) -> Result<CrValue> {
+    fn visit_const_def(&mut self, id: &String, const_value: &Rc<AstNodes>) -> Result<CrValue> {
         let const_value = self.visit(const_value)?;
-        #[cfg(debug_assertions)]
-        println!("Defined constant {} with value {}!", id, const_value);
         self.current_symbol_table
-            .write()
-            .insert(Symbol::Const(id, const_value));
+            .borrow_mut()
+            .insert(Symbol::Const(id.clone(), const_value));
         Ok(CrValue::Void)
     }
 
-    fn visit_var_def(&mut self, id: String, init_value: Box<AstNodes>) -> Result<CrValue> {
+    fn visit_var_def(&mut self, id: &String, init_value: &Rc<AstNodes>) -> Result<CrValue> {
         let init_value = self.visit(init_value)?;
-        #[cfg(debug_assertions)]
-        println!("Defined variable {} with value {}!", id, init_value);
         self.current_symbol_table
-            .write()
-            .insert(Symbol::Var(id, init_value));
+            .borrow_mut()
+            .insert(Symbol::Var(id.clone(), init_value));
         Ok(CrValue::Void)
     }
 
-    fn visit_read_var(&mut self, id: String) -> Result<CrValue> {
-        if let Some(symbol) = self.current_symbol_table.read().get(&id) {
-            return symbol.get_value().cloned();
-        }
-        Err(Error::SymbolNotFound)
+    fn visit_read_var(&mut self, id: &String) -> Result<CrValue> {
+        let value = self.current_symbol_table.borrow().symbol_clone_value(id)?;
+        Ok(value)
     }
 
     fn visit_function_def(
         &mut self,
-        id: String,
-        params: Vec<String>,
-        body: Vec<Box<AstNodes>>,
+        id: &String,
+        params: &Vec<String>,
+        body: &Vec<Rc<AstNodes>>,
     ) -> Result<CrValue> {
         self.current_symbol_table
-            .write()
-            .insert(Symbol::Function(id, params, body));
+            .borrow_mut()
+            .insert(Symbol::Function(id.clone(), params.clone(), body.clone()));
         Ok(CrValue::Void)
     }
 
-    fn visit_call(&mut self, id: String, args: Vec<Box<AstNodes>>) -> Result<CrValue> {
+    fn visit_call(&mut self, id: &String, args: &Vec<Rc<AstNodes>>) -> Result<CrValue> {
         match id.as_str() {
             "print" => {
                 self.print(args)?;
@@ -350,28 +347,26 @@ impl Interpreter {
             _ => {}
         }
 
-        let symbol_table = self.current_symbol_table.read();
-        let function = symbol_table
-            .get(id.as_str())
-            .expect(format!("Unable to find function {id}!").as_str())
-            .clone();
-        drop(symbol_table);
+        let function = self
+            .current_symbol_table
+            .borrow()
+            .symbol_clone(id.as_str())
+            .expect(format!("Unable to find function {id}!").as_str());
+
         match function {
             Symbol::Function(_, params, body) => {
-                let last_symbol_table = self.current_symbol_table.clone();
-                let new_symbol_table = Arc::new(RwLock::new(SymbolTable::new(Some(
+                let last_symbol_table = self.current_symbol_table.to_owned();
+                let new_symbol_table = Rc::new(RefCell::new(SymbolTable::new(Some(
                     last_symbol_table.clone(),
                 ))));
                 for (name, value) in zip(params, args) {
-                    new_symbol_table
-                        .write()
-                        .insert(Symbol::Const(name, self.visit(value)?));
+                    let value = Symbol::Const(name, self.visit(value)?);
+                    new_symbol_table.borrow_mut().insert(value);
                 }
                 self.current_symbol_table = new_symbol_table;
-                for item in body {
+                for item in &body {
                     if let Err(error) = self.visit(item) {
                         if let Error::Return(value) = error {
-                            //println!("return with {:?}", value);
                             self.current_symbol_table = last_symbol_table;
                             return Ok(value);
                         }
@@ -385,8 +380,8 @@ impl Interpreter {
         }
     }
 
-    fn visit_return(&mut self, value: Box<AstNodes>) -> Result<CrValue> {
-        let val = self.visit(value)?;
+    fn visit_return(&mut self, value: &Rc<AstNodes>) -> Result<CrValue> {
+        let val = self.visit(&value)?;
         Err(Error::Return(val))
     }
 }

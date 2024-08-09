@@ -14,6 +14,8 @@ fn main() {
         .read_to_string(&mut code)
         .expect("Unable to read cara source file!");
 
+    cara::back::set_printer(|args| print!("{}", args));
+
     let lexer = Lexer::new(code);
     let mut parser = Parser::new(lexer);
 
@@ -25,9 +27,9 @@ fn main() {
     let mut interpreter = Interpreter::new();
 
     #[cfg(debug_assertions)]
-    let result = interpreter.visit(ast).unwrap();
+    let result = interpreter.visit(&ast).unwrap();
     #[cfg(not(debug_assertions))]
-    interpreter.visit(ast).unwrap();
+    interpreter.visit(&ast).unwrap();
 
     #[cfg(debug_assertions)]
     println!("{:?}", result);
