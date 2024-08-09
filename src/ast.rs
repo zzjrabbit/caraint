@@ -5,8 +5,8 @@ use num_bigint::BigInt;
 pub enum AstNodes {
     Assign(String, Option<Box<AstNodes>>, Box<AstNodes>),
     CompileUnit(Vec<Box<AstNodes>>),
-    BinaryOp(Box<AstNodes>, char, Box<AstNodes>),
-    UnaryOp(char, Box<AstNodes>),
+    BinaryOp(Box<AstNodes>, &'static str, Box<AstNodes>),
+    UnaryOp(&'static str, Box<AstNodes>),
     Number(BigInt),
     VarDef(String, Box<AstNodes>),
     ConstDef(String, Box<AstNodes>),
@@ -17,6 +17,9 @@ pub enum AstNodes {
     If(Box<AstNodes>, Vec<Box<AstNodes>>, Vec<Box<AstNodes>>),
     For(String, Box<AstNodes>, Box<AstNodes>, Vec<Box<AstNodes>>),
     List(Vec<Box<AstNodes>>),
-    TemplateList(Box<AstNodes>,Box<AstNodes>),
-    Index(String,Box<AstNodes>)
+    TemplateList(Box<AstNodes>, Box<AstNodes>),
+    Index(String, Box<AstNodes>),
+    While(Box<AstNodes>, Vec<Box<AstNodes>>),
+    Break,
+    Continue,
 }

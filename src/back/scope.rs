@@ -2,8 +2,11 @@ use std::sync::Arc;
 
 use spin::RwLock;
 
+use super::{
+    result::{Error, Result},
+    value::CrValue,
+};
 use crate::ast::AstNodes;
-use super::{result::{Error, Result}, value::CrValue};
 
 #[derive(Debug, Clone)]
 pub enum Symbol {
@@ -40,7 +43,7 @@ impl Symbol {
 
     pub fn try_assign(&mut self, value: CrValue) -> Result<()> {
         match self {
-            Symbol::Const(_, _) | Symbol::Function(_,_,_) => return Err(Error::BadAssign),
+            Symbol::Const(_, _) | Symbol::Function(_, _, _) => return Err(Error::BadAssign),
             Symbol::Var(_, old_value) => *old_value = value,
         }
         Ok(())

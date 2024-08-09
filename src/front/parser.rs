@@ -118,7 +118,10 @@ impl Parser {
                         KeywordTypes::Return => self.parse_return(),
                         KeywordTypes::If => self.parse_if(),
                         KeywordTypes::For => self.parse_for(),
-                        _ => unreachable!()
+                        KeywordTypes::Break => self.parse_break(),
+                        KeywordTypes::Continue => self.parse_continue(),
+                        KeywordTypes::While => self.parse_while(),
+                        _ => unreachable!(),
                     }
                 }
                 Token::Id(_) => {
@@ -134,13 +137,31 @@ impl Parser {
         panic!("Nothing to parse!");
     }
 
+    fn parse_break(&mut self) -> Box<AstNodes> {
+        self.advance();
+        Box::new(AstNodes::Break)
+    }
+
+    fn parse_continue(&mut self) -> Box<AstNodes> {
+        self.advance();
+        Box::new(AstNodes::Continue)
+    }
+
+    fn parse_while(&mut self) -> Box<AstNodes> {
+        self.advance();
+        let condition = self.parse_expr();
+        self.eat(Token::LBrace);
+        let body = self.parse_block();
+        self.eat(Token::RBrace);
+        Box::new(AstNodes::While(condition, body))
+    }
+
     fn parse_list(&mut self) -> Box<AstNodes> {
         self.eat(Token::LBracket);
         let mut value_list = Vec::new();
 
         if let Some(Token::RBracket) = self.current_token {
-
-        }else {
+        } else {
             let first_value = self.parse_expr();
 
             if let Some(Token::Semi) = self.current_token {
@@ -171,7 +192,7 @@ impl Parser {
         let variable = self.eat(Token::Id("".into())).as_ident().unwrap();
 
         self.eat(Token::Keyword(KeywordTypes::In));
-        
+
         self.eat(Token::LParen);
         let start = self.parse_expr();
         self.eat(Token::Comma);
@@ -298,7 +319,7 @@ impl Parser {
 
         let init_val = if let Some(Token::LBracket) = self.current_token {
             self.parse_list()
-        }else {
+        } else {
             self.parse_expr()
         };
 
@@ -315,7 +336,7 @@ impl Parser {
             let index = self.parse_expr();
             self.eat(Token::RBracket);
             Some(index)
-        }else {
+        } else {
             None
         };
 
@@ -325,7 +346,7 @@ impl Parser {
 
         self.eat(Token::Semi);
 
-        Box::new(AstNodes::Assign(id ,index, expr))
+        Box::new(AstNodes::Assign(id, index, expr))
     }
 
     fn parse_expr(&mut self) -> Box<AstNodes> {
@@ -333,7 +354,7 @@ impl Parser {
         while let Some(current_token) = self.current_token.clone() {
             if let Some(op) = current_token.as_operator() {
                 match op {
-                    '|'|'&' => {
+                    "||" | "&&" => {
                         self.advance();
                         node = Box::new(AstNodes::BinaryOp(node, op, self.parse_eq_expr()));
                     }
@@ -351,7 +372,7 @@ impl Parser {
         while let Some(current_token) = self.current_token.clone() {
             if let Some(op) = current_token.as_operator() {
                 match op {
-                    'e'|'n'|'g'|'l'|'<'|'>' => {
+                    "==" | "!=" | ">=" | "<=" | "<" | ">" => {
                         self.advance();
                         node = Box::new(AstNodes::BinaryOp(node, op, self.parse_add_expr()));
                     }
@@ -365,11 +386,29 @@ impl Parser {
     }
 
     fn parse_add_expr(&mut self) -> Box<AstNodes> {
+        let mut node = self.parse_move_expr();
+        while let Some(current_token) = self.current_token.clone() {
+            if let Some(op) = current_token.as_operator() {
+                match op {
+                    "+" | "-" => {
+                        self.advance();
+                        node = Box::new(AstNodes::BinaryOp(node, op, self.parse_move_expr()));
+                    }
+                    _ => break,
+                }
+            } else {
+                break;
+            }
+        }
+        node
+    }
+
+    fn parse_move_expr(&mut self) -> Box<AstNodes> {
         let mut node = self.parse_term();
         while let Some(current_token) = self.current_token.clone() {
             if let Some(op) = current_token.as_operator() {
                 match op {
-                    '+' | '-' => {
+                    "<<" | ">>" => {
                         self.advance();
                         node = Box::new(AstNodes::BinaryOp(node, op, self.parse_term()));
                     }
@@ -387,7 +426,7 @@ impl Parser {
         while let Some(current_token) = self.current_token.clone() {
             if let Some(op) = current_token.as_operator() {
                 match op {
-                    '*' | '/' | '%' => {
+                    "*" | "/" | "%" => {
                         self.advance();
                         node = Box::new(AstNodes::BinaryOp(node, op, self.parse_factor()));
                     }
@@ -414,7 +453,7 @@ impl Parser {
                 node
             }
             Token::Operator(op) => match op {
-                '+' | '-' => {
+                "+" | "-" => {
                     self.advance();
                     let node = self.parse_expr();
                     Box::new(AstNodes::UnaryOp(op, node))
@@ -437,7 +476,7 @@ impl Parser {
                     Box::new(AstNodes::ReadVar(id))
                 }
             }
-            _ => panic!("Syntax error {:?}!",token),
+            _ => panic!("Syntax error {:?}!", token),
         }
     }
 

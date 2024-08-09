@@ -12,6 +12,9 @@ pub enum KeywordTypes {
     Else,
     For,
     In,
+    While,
+    Break,
+    Continue,
 }
 
 impl KeywordTypes {
@@ -25,6 +28,9 @@ impl KeywordTypes {
             "else" => Some(Self::Else),
             "for" => Some(Self::For),
             "in" => Some(Self::In),
+            "while" => Some(Self::While),
+            "break" => Some(Self::Break),
+            "continue" => Some(Self::Continue),
             _ => None,
         }
     }
@@ -35,7 +41,7 @@ pub enum Token {
     /// Numbers, such as 0,1,2,1234,114514 and so on.
     Number(BigInt),
     /// Operators, +,-,*,/,......
-    Operator(char),
+    Operator(&'static str),
     /// Left paren, (
     LParen,
     /// Right paren, )
@@ -62,7 +68,7 @@ pub enum Token {
 
 impl Token {
     /// This function returns the operator if the token is, otherwise it returns None.
-    pub fn as_operator(&self) -> Option<char> {
+    pub fn as_operator(&self) -> Option<&'static str> {
         match self {
             Token::Operator(ch) => Some(*ch),
             _ => None,
@@ -133,50 +139,55 @@ impl Lexer {
                     return Some(Token::Number(num));
                 }
                 '+' | '-' | '*' | '/' => {
-                    return Some(Token::Operator(ch));
+                    return Some(Token::Operator(<char as Into<String>>::into(ch).leak()));
                 }
                 '(' => return Some(Token::LParen),
                 ')' => return Some(Token::RParen),
                 '=' => {
                     if self.current_char() == '=' {
                         self.advance();
-                        return Some(Token::Operator('e'));
+                        return Some(Token::Operator("=="));
                     }
                     return Some(Token::Assign);
-                    
-                },
+                }
                 '!' => {
                     if self.current_char() == '=' {
                         self.advance();
-                        return Some(Token::Operator('n'));
+                        return Some(Token::Operator("!="));
                     }
                     panic!("Unexpected charactor {}!", ch)
                 }
                 '>' => {
                     if self.current_char() == '=' {
                         self.advance();
-                        return Some(Token::Operator('g'));
+                        return Some(Token::Operator(">="));
+                    } else if self.current_char() == '>' {
+                        self.advance();
+                        return Some(Token::Operator(">>"));
                     }
-                    return Some(Token::Operator('>'));
+                    return Some(Token::Operator(">"));
                 }
                 '<' => {
                     if self.current_char() == '=' {
                         self.advance();
-                        return Some(Token::Operator('l'));
+                        return Some(Token::Operator("<="));
+                    } else if self.current_char() == '<' {
+                        self.advance();
+                        return Some(Token::Operator("<<"));
                     }
-                    return Some(Token::Operator('<'));
+                    return Some(Token::Operator("<"));
                 }
                 '|' => {
                     if self.current_char() == '|' {
                         self.advance();
-                        return Some(Token::Operator('|'));
+                        return Some(Token::Operator("||"));
                     }
                     panic!("Unexpected charactor {}!", ch)
                 }
                 '&' => {
                     if self.current_char() == '&' {
                         self.advance();
-                        return Some(Token::Operator('&'));
+                        return Some(Token::Operator("&&"));
                     }
                     panic!("Unexpected charactor {}!", ch)
                 }

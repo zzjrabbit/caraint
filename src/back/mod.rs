@@ -65,14 +65,54 @@ impl Interpreter {
             AstNodes::List(value_list) => self.visit_list(value_list),
             AstNodes::Index(id, index) => self.visit_index(id, index),
             AstNodes::TemplateList(template, num) => self.visit_template_list(template, num),
+            AstNodes::While(condition, body) => self.visit_while(condition, body),
+            AstNodes::Break => self.visit_break(),
+            AstNodes::Continue => self.visit_continue(),
         }
+    }
+
+    fn visit_break(&mut self) -> Result<CrValue> {
+        Err(Error::Break)
+    }
+
+    fn visit_continue(&mut self) -> Result<CrValue> {
+        Err(Error::Continue)
+    }
+
+    fn visit_while(
+        &mut self,
+        condition: Box<AstNodes>,
+        body: Vec<Box<AstNodes>>,
+    ) -> Result<CrValue> {
+        while self.visit(condition.clone())?.into_int()? > BigInt::ZERO {
+            let last_symbol_table = self.current_symbol_table.clone();
+            let temp_symbol_table = Arc::new(RwLock::new(SymbolTable::new(Some(
+                last_symbol_table.clone(),
+            ))));
+
+            self.current_symbol_table = temp_symbol_table;
+            for item in body.iter() {
+                if let Err(error) = self.visit(item.clone()) {
+                    match error {
+                        Error::Break => return Ok(CrValue::Void),
+                        Error::Continue => break,
+                        _ => return Err(error),
+                    }
+                }
+            }
+            self.current_symbol_table = last_symbol_table;
+        }
+        Ok(CrValue::Void)
     }
 
     fn visit_index(&mut self, id: String, index: Box<AstNodes>) -> Result<CrValue> {
         let index = self.visit(index)?.into_int()?;
         if let Some(symbol) = self.current_symbol_table.write().get(&id) {
             let array = symbol.get_value()?;
-            Ok(*array.into_list()?.1[*index.to_u64_digits().1.get(0).unwrap_or(&0) as usize].clone())
+            Ok(
+                *array.into_list()?.1[*index.to_u64_digits().1.get(0).unwrap_or(&0) as usize]
+                    .clone(),
+            )
         } else {
             Err(Error::SymbolNotFound)
         }
@@ -95,7 +135,7 @@ impl Interpreter {
         for _ in 0..num {
             values.push(Box::new(template_value.clone()));
         }
-        Ok(CrValue::List(num as usize,values))
+        Ok(CrValue::List(num as usize, values))
     }
 
     fn visit_list(&mut self, value_list: Vec<Box<AstNodes>>) -> Result<CrValue> {
@@ -103,7 +143,7 @@ impl Interpreter {
         for value in value_list {
             values.push(Box::new(self.visit(value)?));
         }
-        Ok(CrValue::List(values.len(),values))
+        Ok(CrValue::List(values.len(), values))
     }
 
     fn visit_for(
@@ -131,7 +171,13 @@ impl Interpreter {
 
             self.current_symbol_table = temp_symbol_table;
             for item in body.iter() {
-                self.visit(item.clone())?;
+                if let Err(error) = self.visit(item.clone()) {
+                    match error {
+                        Error::Break => return Ok(CrValue::Void),
+                        Error::Continue => break,
+                        _ => return Err(error),
+                    }
+                }
             }
             self.current_symbol_table = last_symbol_table;
             var += 1;
@@ -195,26 +241,28 @@ impl Interpreter {
     fn visit_binary_op(
         &mut self,
         left: Box<AstNodes>,
-        op: char,
+        op: &'static str,
         right: Box<AstNodes>,
     ) -> Result<CrValue> {
         let left = self.visit(left)?.into_int()?;
         let right = self.visit(right)?.into_int()?;
 
         Ok(CrValue::Number(match op {
-            '+' => left + right,
-            '-' => left - right,
-            '*' => left * right,
-            '/' => left / right,
-            'e' => BigInt::from((left == right) as u8),
-            'n' => BigInt::from((left != right) as u8),
-            'l' => BigInt::from((left <= right) as u8),
-            'g' => BigInt::from((left >= right) as u8),
-            '<' => BigInt::from((left < right) as u8),
-            '>' => BigInt::from((left > right) as u8),
-            '|' => BigInt::from((left > BigInt::ZERO || right > BigInt::ZERO) as u8),
-            '&' => BigInt::from((left > BigInt::ZERO && right > BigInt::ZERO) as u8),
-            '%' => left % right,
+            "+" => left + right,
+            "-" => left - right,
+            "*" => left * right,
+            "/" => left / right,
+            "==" => BigInt::from((left == right) as u8),
+            "!=" => BigInt::from((left != right) as u8),
+            "<=" => BigInt::from((left <= right) as u8),
+            ">=" => BigInt::from((left >= right) as u8),
+            "<" => BigInt::from((left < right) as u8),
+            ">" => BigInt::from((left > right) as u8),
+            "||" => BigInt::from((left > BigInt::ZERO || right > BigInt::ZERO) as u8),
+            "&&" => BigInt::from((left > BigInt::ZERO && right > BigInt::ZERO) as u8),
+            "%" => left % right,
+            "<<" => left << *right.to_u64_digits().1.get(0).unwrap_or(&0),
+            ">>" => left >> *right.to_u64_digits().1.get(0).unwrap_or(&0),
             _ => return Err(Error::UnknownOperator),
         }))
     }
@@ -230,10 +278,10 @@ impl Interpreter {
         Ok(CrValue::Number(num))
     }
 
-    fn visit_unary_op(&mut self, op: char, val: Box<AstNodes>) -> Result<CrValue> {
+    fn visit_unary_op(&mut self, op: &'static str, val: Box<AstNodes>) -> Result<CrValue> {
         let val = self.visit(val)?.into_int()?;
         Ok(CrValue::Number(match op {
-            '-' => -val,
+            "-" => -val,
             _ => val,
         }))
     }

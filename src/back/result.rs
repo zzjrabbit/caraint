@@ -18,6 +18,8 @@ pub enum Error {
     NonIntCalc,
     UnknownOperator,
     Return(CrValue),
+    Break,
+    Continue,
 }
 
 impl fmt::Display for Error {
@@ -36,7 +38,7 @@ impl fmt::Display for Error {
             Self::ArgMismatch => write!(f, "argument mismatch"),
             Self::NonIntCalc => write!(f, "non-integer calculation"),
             Self::UnknownOperator => write!(f, "unknown operator"),
-            _ => Ok(())
+            _ => Ok(()),
         }
     }
 }

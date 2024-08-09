@@ -4,16 +4,17 @@ fn fib(n) {
     append(fib_numbers,1);
     append(fib_numbers,1);
 
-    for i in (2,n) {
+    var i = 2;
+
+    while i < n {
         append(fib_numbers,fib_numbers[i-1] + fib_numbers[i-2]);
+        i = i+1;
     }
 }
 
-if 0 < 1 && 1 < 2 && 2 <= 3 || 1 < 0 {
-    print(10);
-}
+fib(1 << 1*2 + 1);
 
-fib(10000);
+print(fib_numbers);
 
 
 
