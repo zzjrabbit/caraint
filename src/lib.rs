@@ -4,7 +4,7 @@
 extern crate alloc;
 
 #[global_allocator]
-static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+static GLOBAL: snmalloc_rs::SnMalloc = snmalloc_rs::SnMalloc;
 
 pub mod ast;
 pub mod back;
