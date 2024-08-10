@@ -1,6 +1,5 @@
 use alloc::string::String;
-
-use num_bigint::BigInt;
+use dashu::integer::IBig;
 
 /// This enum defines all the token types with their values
 
@@ -41,7 +40,7 @@ impl KeywordTypes {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Token {
     /// Numbers, such as 0,1,2,1234,114514 and so on.
-    Number(BigInt),
+    Number(IBig),
     /// Operators, +,-,*,/,......
     Operator(&'static str),
     /// Left paren, (
@@ -130,7 +129,7 @@ impl Lexer {
         while let Some(ch) = self.advance() {
             match ch {
                 '0'..='9' => {
-                    let mut num = BigInt::from(ch.to_digit(10).unwrap());
+                    let mut num = IBig::from(ch.to_digit(10).unwrap());
                     while let Some(ch) = self.advance() {
                         if !ch.is_numeric() {
                             self.position -= 1;

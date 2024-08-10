@@ -1,10 +1,8 @@
 use alloc::{rc::Rc, string::String, vec::Vec};
-
-use num_bigint::BigInt;
-
-use crate::ast::*;
+use dashu::integer::IBig;
 
 use super::{KeywordTypes, Lexer, Token};
+use crate::ast::AstNodes;
 
 /// This is a simple and stupid LL(1) parser.
 pub struct Parser {
@@ -206,7 +204,7 @@ impl Parser {
             self.advance();
             self.parse_expr()
         } else {
-            Rc::new(AstNodes::Number(BigInt::from(1)))
+            Rc::new(AstNodes::Number(IBig::from(1)))
         };
 
         self.eat(Token::RParen);

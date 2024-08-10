@@ -1,6 +1,6 @@
 use alloc::{borrow::ToOwned, format, rc::Rc, string::String, vec::Vec};
 use core::{cell::RefCell, iter::zip};
-use num_bigint::BigInt;
+use dashu::integer::IBig;
 use value::CrValue;
 
 use crate::ast::AstNodes;
@@ -93,7 +93,7 @@ impl Interpreter {
             last_symbol_table.clone(),
         ))));
 
-        while self.visit(condition)?.into_int()? > BigInt::ZERO {
+        while self.visit(condition)?.into_int()? > IBig::ZERO {
             self.current_symbol_table = temp_symbol_table.clone();
             for item in body {
                 if let Err(error) = self.visit(item) {
@@ -111,32 +111,27 @@ impl Interpreter {
     }
 
     fn visit_index(&mut self, id: &String, index: &Rc<AstNodes>) -> Result<CrValue> {
-        let index = self.visit(index)?.into_int()?;
-        let index = *index.to_u64_digits().1.get(0).unwrap_or(&0) as usize;
+        let number = self.visit(index)?.into_int()?;
+        let index = number.as_sign_words().1.get(0).unwrap_or(&0);
         Ok(self
             .current_symbol_table
             .borrow()
-            .symbol_crvalue_list_item(&id, index)?)
+            .symbol_crvalue_list_item(&id, *index as usize)?)
     }
 
     fn visit_template_list(
         &mut self,
         template: &Rc<AstNodes>,
-        num: &Rc<AstNodes>,
+        size: &Rc<AstNodes>,
     ) -> Result<CrValue> {
         let template_value = self.visit(template)?;
-        let num = *self
-            .visit(num)?
-            .into_int()?
-            .to_u64_digits()
-            .1
-            .get(0)
-            .unwrap_or(&0);
-        let mut values = Vec::with_capacity(num as usize);
-        for _ in 0..num {
+        let number = self.visit(size)?.into_int()?;
+        let size = number.as_sign_words().1.get(0).unwrap_or(&0);
+        let mut values = Vec::with_capacity(*size as usize);
+        for _ in 0..*size {
             values.push(template_value.clone());
         }
-        Ok(CrValue::List(num as usize, values))
+        Ok(CrValue::List(*size as usize, values))
     }
 
     fn visit_list(&mut self, value_list: &Vec<Rc<AstNodes>>) -> Result<CrValue> {
@@ -159,12 +154,9 @@ impl Interpreter {
         let end = self.visit(&end)?.into_int()?;
         let step = self.visit(&step)?.into_int()?;
 
-        let need = *(end.clone() - start.clone())
-            .to_u64_digits()
-            .1
-            .get(0)
-            .unwrap_or(&0) as usize;
-        let step = *step.to_u64_digits().1.get(0).unwrap_or(&0) as usize;
+        let need = end.clone() - start.clone();
+        let need = *need.as_sign_words().1.get(0).unwrap_or(&0) as usize;
+        let step = *step.as_sign_words().1.get(0).unwrap_or(&0) as usize;
 
         let last_symbol_table = self.current_symbol_table.to_owned();
         let temp_symbol_table = Rc::new(RefCell::new(SymbolTable::new(Some(
@@ -204,7 +196,7 @@ impl Interpreter {
         else_block: &Vec<Rc<AstNodes>>,
     ) -> Result<CrValue> {
         let condition = self.visit(condition)?;
-        if condition.into_int()? > BigInt::ZERO {
+        if condition.into_int()? > IBig::ZERO {
             let last_symbol_table = self.current_symbol_table.to_owned();
             let temp_symbol_table = Rc::new(RefCell::new(SymbolTable::new(Some(
                 last_symbol_table.clone(),
@@ -233,11 +225,14 @@ impl Interpreter {
     ) -> Result<CrValue> {
         let value = self.visit(&value)?;
         if let Some(index) = index {
-            let index = self.visit(index)?.into_int()?;
-            let index = *index.to_u64_digits().1.get(0).unwrap_or(&0) as usize;
-            self.current_symbol_table
-                .borrow_mut()
-                .symbol_list_modify(&id, index, value)?;
+            let number = self.visit(index)?.into_int()?;
+            let index = number.as_sign_words().1.get(0).unwrap_or(&0);
+            let index = index;
+            self.current_symbol_table.borrow_mut().symbol_list_modify(
+                &id,
+                *index as usize,
+                value,
+            )?;
         } else {
             self.current_symbol_table
                 .borrow_mut()
@@ -260,17 +255,17 @@ impl Interpreter {
             "-" => left - right,
             "*" => left * right,
             "/" => left / right,
-            "==" => BigInt::from((left == right) as u8),
-            "!=" => BigInt::from((left != right) as u8),
-            "<=" => BigInt::from((left <= right) as u8),
-            ">=" => BigInt::from((left >= right) as u8),
-            "<" => BigInt::from((left < right) as u8),
-            ">" => BigInt::from((left > right) as u8),
-            "||" => BigInt::from((left > BigInt::ZERO || right > BigInt::ZERO) as u8),
-            "&&" => BigInt::from((left > BigInt::ZERO && right > BigInt::ZERO) as u8),
+            "==" => IBig::from((left == right) as u8),
+            "!=" => IBig::from((left != right) as u8),
+            "<=" => IBig::from((left <= right) as u8),
+            ">=" => IBig::from((left >= right) as u8),
+            "<" => IBig::from((left < right) as u8),
+            ">" => IBig::from((left > right) as u8),
+            "||" => IBig::from((left > IBig::ZERO || right > IBig::ZERO) as u8),
+            "&&" => IBig::from((left > IBig::ZERO && right > IBig::ZERO) as u8),
             "%" => left % right,
-            "<<" => left << *right.to_u64_digits().1.get(0).unwrap_or(&0),
-            ">>" => left >> *right.to_u64_digits().1.get(0).unwrap_or(&0),
+            "<<" => left << *right.as_sign_words().1.get(0).unwrap_or(&0) as usize,
+            ">>" => left >> *right.as_sign_words().1.get(0).unwrap_or(&0) as usize,
             _ => return Err(Error::UnknownOperator),
         }))
     }
@@ -282,7 +277,7 @@ impl Interpreter {
         Ok(CrValue::Void)
     }
 
-    fn visit_number(&mut self, num: &BigInt) -> Result<CrValue> {
+    fn visit_number(&mut self, num: &IBig) -> Result<CrValue> {
         Ok(CrValue::Number(num.clone()))
     }
 

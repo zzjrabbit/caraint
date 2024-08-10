@@ -1,16 +1,12 @@
 use alloc::{rc::Rc, vec::Vec};
 use core::fmt;
-
-use num_bigint::BigInt;
+use dashu::integer::IBig;
 use spin::Mutex;
 
+use super::result::{Error, Result};
+use super::value::CrValue;
 use crate::ast::AstNodes;
-
-use super::{
-    result::{Error, Result},
-    value::CrValue,
-    Interpreter,
-};
+use crate::back::Interpreter;
 
 static PRINTER: Mutex<Option<fn(fmt::Arguments)>> = Mutex::new(None);
 
@@ -54,17 +50,12 @@ impl Interpreter {
             return Err(Error::ArgMismatch);
         }
         if let AstNodes::ReadVar(id) = args[0].as_ref() {
-            let index = *self
-                .visit(&args[1])?
-                .into_int()?
-                .to_u64_digits()
-                .1
-                .get(0)
-                .unwrap_or(&0);
+            let number = self.visit(&args[1])?.into_int()?;
+            let index = number.as_sign_words().1.get(0).unwrap_or(&0);
             let value = self.visit(&args[2])?;
 
             let mut symbol_table = self.current_symbol_table.borrow_mut();
-            symbol_table.symbol_list_insert(&id, index as usize, value)?;
+            symbol_table.symbol_list_insert(&id, *index as usize, value)?;
 
             Ok(())
         } else {
@@ -81,7 +72,7 @@ impl Interpreter {
                 .current_symbol_table
                 .borrow_mut()
                 .symbol_crvalue_len(&id)?;
-            let value = CrValue::Number(BigInt::from(length));
+            let value = CrValue::Number(IBig::from(length));
             Ok(value)
         } else {
             Err(Error::ArgMismatch)
@@ -93,13 +84,13 @@ impl Interpreter {
             return Err(Error::ArgMismatch);
         }
         if let AstNodes::ReadVar(id) = args[0].as_ref() {
-            let (_sign, value) = self.visit(&args[1])?.into_int()?.to_u64_digits();
-            let index = *value.get(0).unwrap_or(&0);
+            let number = self.visit(&args[1])?.into_int()?;
+            let index = number.as_sign_words().1.get(0).unwrap_or(&0);
 
             let list = self
                 .current_symbol_table
                 .borrow_mut()
-                .symbol_list_remove(&id, index as usize)?;
+                .symbol_list_remove(&id, *index as usize)?;
 
             Ok(list)
         } else {

@@ -1,14 +1,13 @@
 use alloc::{string::String, vec::Vec};
 use core::fmt::{self, Display};
-
-use num_bigint::BigInt;
+use dashu::integer::IBig;
 
 use super::result::{Error, Result};
 use crate::ast::AstNodes;
 
 #[derive(Debug, Clone)]
 pub enum CrValue {
-    Number(BigInt),
+    Number(IBig),
     Function(Vec<String>, Vec<AstNodes>),
     List(usize, Vec<CrValue>),
     Void,
@@ -33,7 +32,7 @@ impl Display for CrValue {
 }
 
 impl CrValue {
-    pub fn into_int(&self) -> Result<BigInt> {
+    pub fn into_int(&self) -> Result<IBig> {
         match self {
             CrValue::Number(num) => Ok(num.clone()),
             _ => Err(Error::UseVoidValue),

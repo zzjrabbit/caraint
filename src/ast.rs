@@ -1,6 +1,5 @@
 use alloc::{rc::Rc, string::String, vec::Vec};
-
-use num_bigint::BigInt;
+use dashu::integer::IBig;
 
 /// This is the AST nodes definition.
 #[derive(Debug, Clone)]
@@ -9,7 +8,7 @@ pub enum AstNodes {
     CompileUnit(Vec<Rc<AstNodes>>),
     BinaryOp(Rc<AstNodes>, &'static str, Rc<AstNodes>),
     UnaryOp(&'static str, Rc<AstNodes>),
-    Number(BigInt),
+    Number(IBig),
     VarDef(String, Rc<AstNodes>),
     ConstDef(String, Rc<AstNodes>),
     ReadVar(String),

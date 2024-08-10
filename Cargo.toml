@@ -5,10 +5,7 @@ edition = "2021"
 
 [dependencies]
 spin = "0.9.8"
-
-[dependencies.num-bigint]
-version = "0.4.6"
-default-features = false
+dashu = "0.4.2"
 
 [dependencies.mimalloc]
 version = "0.1.37"
