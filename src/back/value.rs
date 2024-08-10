@@ -1,6 +1,6 @@
 use alloc::{string::String, vec::Vec};
 use core::fmt::{self, Display};
-use dashu::integer::IBig;
+use dashu_int::IBig;
 
 use super::result::{Error, Result};
 use crate::ast::AstNodes;

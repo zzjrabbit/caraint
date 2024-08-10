@@ -1,5 +1,5 @@
 use alloc::{rc::Rc, string::String, vec::Vec};
-use dashu::integer::IBig;
+use dashu_int::IBig;
 
 use super::{KeywordTypes, Lexer, Token};
 use crate::ast::AstNodes;

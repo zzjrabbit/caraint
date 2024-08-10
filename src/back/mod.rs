@@ -1,6 +1,6 @@
 use alloc::{borrow::ToOwned, format, rc::Rc, string::String, vec::Vec};
 use core::{cell::RefCell, iter::zip};
-use dashu::integer::IBig;
+use dashu_int::IBig;
 use value::CrValue;
 
 use crate::ast::AstNodes;
@@ -112,11 +112,11 @@ impl Interpreter {
 
     fn visit_index(&mut self, id: &String, index: &Rc<AstNodes>) -> Result<CrValue> {
         let number = self.visit(index)?.into_int()?;
-        let index = number.as_sign_words().1.get(0).unwrap_or(&0);
+        let index = usize::try_from(&number).unwrap();
         Ok(self
             .current_symbol_table
             .borrow()
-            .symbol_crvalue_list_item(&id, *index as usize)?)
+            .symbol_crvalue_list_item(&id, index)?)
     }
 
     fn visit_template_list(
@@ -126,12 +126,12 @@ impl Interpreter {
     ) -> Result<CrValue> {
         let template_value = self.visit(template)?;
         let number = self.visit(size)?.into_int()?;
-        let size = number.as_sign_words().1.get(0).unwrap_or(&0);
-        let mut values = Vec::with_capacity(*size as usize);
-        for _ in 0..*size {
+        let size = usize::try_from(&number).unwrap();
+        let mut values = Vec::with_capacity(size);
+        for _ in 0..size {
             values.push(template_value.clone());
         }
-        Ok(CrValue::List(*size as usize, values))
+        Ok(CrValue::List(size as usize, values))
     }
 
     fn visit_list(&mut self, value_list: &Vec<Rc<AstNodes>>) -> Result<CrValue> {
@@ -154,9 +154,8 @@ impl Interpreter {
         let end = self.visit(&end)?.into_int()?;
         let step = self.visit(&step)?.into_int()?;
 
-        let need = end.clone() - start.clone();
-        let need = *need.as_sign_words().1.get(0).unwrap_or(&0) as usize;
-        let step = *step.as_sign_words().1.get(0).unwrap_or(&0) as usize;
+        let need = isize::try_from(&(&end - &start)).unwrap();
+        let step = usize::try_from(&step).unwrap();
 
         let last_symbol_table = self.current_symbol_table.to_owned();
         let temp_symbol_table = Rc::new(RefCell::new(SymbolTable::new(Some(
@@ -164,7 +163,7 @@ impl Interpreter {
         ))));
 
         for pos in (0..need).step_by(step) {
-            let num = start.clone() + pos;
+            let num = &start + IBig::from(pos);
 
             if num > end {
                 break;
@@ -226,13 +225,10 @@ impl Interpreter {
         let value = self.visit(&value)?;
         if let Some(index) = index {
             let number = self.visit(index)?.into_int()?;
-            let index = number.as_sign_words().1.get(0).unwrap_or(&0);
-            let index = index;
-            self.current_symbol_table.borrow_mut().symbol_list_modify(
-                &id,
-                *index as usize,
-                value,
-            )?;
+            let index = usize::try_from(&number).unwrap();
+            self.current_symbol_table
+                .borrow_mut()
+                .symbol_list_modify(&id, index, value)?;
         } else {
             self.current_symbol_table
                 .borrow_mut()
@@ -264,8 +260,8 @@ impl Interpreter {
             "||" => IBig::from((left > IBig::ZERO || right > IBig::ZERO) as u8),
             "&&" => IBig::from((left > IBig::ZERO && right > IBig::ZERO) as u8),
             "%" => left % right,
-            "<<" => left << *right.as_sign_words().1.get(0).unwrap_or(&0) as usize,
-            ">>" => left >> *right.as_sign_words().1.get(0).unwrap_or(&0) as usize,
+            "<<" => left << usize::try_from(&right).unwrap(),
+            ">>" => left >> usize::try_from(&right).unwrap(),
             _ => return Err(Error::UnknownOperator),
         }))
     }

@@ -1,6 +1,6 @@
 use alloc::{rc::Rc, vec::Vec};
 use core::fmt;
-use dashu::integer::IBig;
+use dashu_int::IBig;
 use spin::Mutex;
 
 use super::result::{Error, Result};
@@ -51,11 +51,11 @@ impl Interpreter {
         }
         if let AstNodes::ReadVar(id) = args[0].as_ref() {
             let number = self.visit(&args[1])?.into_int()?;
-            let index = number.as_sign_words().1.get(0).unwrap_or(&0);
+            let index = usize::try_from(&number).unwrap();
             let value = self.visit(&args[2])?;
 
             let mut symbol_table = self.current_symbol_table.borrow_mut();
-            symbol_table.symbol_list_insert(&id, *index as usize, value)?;
+            symbol_table.symbol_list_insert(&id, index, value)?;
 
             Ok(())
         } else {
@@ -85,12 +85,12 @@ impl Interpreter {
         }
         if let AstNodes::ReadVar(id) = args[0].as_ref() {
             let number = self.visit(&args[1])?.into_int()?;
-            let index = number.as_sign_words().1.get(0).unwrap_or(&0);
+            let index = usize::try_from(&number).unwrap();
 
             let list = self
                 .current_symbol_table
                 .borrow_mut()
-                .symbol_list_remove(&id, *index as usize)?;
+                .symbol_list_remove(&id, index)?;
 
             Ok(list)
         } else {

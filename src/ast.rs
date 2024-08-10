@@ -1,5 +1,5 @@
 use alloc::{rc::Rc, string::String, vec::Vec};
-use dashu::integer::IBig;
+use dashu_int::IBig;
 
 /// This is the AST nodes definition.
 #[derive(Debug, Clone)]

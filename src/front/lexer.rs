@@ -1,5 +1,5 @@
 use alloc::string::String;
-use dashu::integer::IBig;
+use dashu_int::IBig;
 
 /// This enum defines all the token types with their values
 
@@ -129,18 +129,20 @@ impl Lexer {
         while let Some(ch) = self.advance() {
             match ch {
                 '0'..='9' => {
-                    let mut num = IBig::from(ch.to_digit(10).unwrap());
+                    let mut num = String::new();
+                    num.push(ch);
                     while let Some(ch) = self.advance() {
                         if !ch.is_numeric() {
                             self.position -= 1;
                             break;
                         }
-                        num = num * 10 + ch.to_digit(10).unwrap();
+                        num.push(ch);
                     }
-                    return Some(Token::Number(num));
+                    let number = IBig::from_str_radix(&num, 10).unwrap();
+                    return Some(Token::Number(number));
                 }
                 '+' | '-' | '*' | '/' => {
-                    return Some(Token::Operator(<char as Into<String>>::into(ch).leak()));
+                    return Some(Token::Operator(<char as Into<String>>::into(ch).leak()))
                 }
                 '(' => return Some(Token::LParen),
                 ')' => return Some(Token::RParen),

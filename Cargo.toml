@@ -4,8 +4,8 @@ version = "0.6.0"
 edition = "2021"
 
 [dependencies]
+dashu-int = "0.4.1"
 spin = "0.9.8"
-dashu = "0.4.2"
 
 [dependencies.mimalloc]
 version = "0.1.37"
