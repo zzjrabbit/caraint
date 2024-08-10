@@ -6,16 +6,20 @@ edition = "2021"
 [dependencies]
 spin = "0.9.8"
 
-[dependencies.snmalloc-rs]
-version = "0.3.6"
-features = ["native-cpu"]
-
 [dependencies.dashu-int]
 version = "0.4.1"
 default-features = false
+
+[dependencies.snmalloc-rs]
+version = "0.3.6"
+optional = true
 
 [profile.release]
 lto = true
 opt-level = 3
 panic = "abort"
 codegen-units = 1
+
+[features]
+default = ["snmalloc"]
+snmalloc = ["dep:snmalloc-rs"]
