@@ -1,3 +1,4 @@
+/bench
 /target
 *.cara
 cara
@@ -5,4 +6,3 @@ perf.data
 perf.data.old
 test.py
 flamegraph.svg
-/bench

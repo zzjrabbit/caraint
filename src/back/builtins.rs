@@ -1,5 +1,5 @@
+use alloc::{rc::Rc, vec::Vec};
 use core::fmt;
-use alloc::{rc::Rc,vec::Vec};
 
 use num_bigint::BigInt;
 use spin::Mutex;
@@ -101,7 +101,7 @@ impl Interpreter {
                 .borrow_mut()
                 .symbol_list_remove(&id, index as usize)?;
 
-            Ok((*list).clone())
+            Ok(list)
         } else {
             Err(Error::ArgMismatch)
         }

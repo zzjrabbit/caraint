@@ -1,5 +1,5 @@
-use core::fmt::Display;
-use alloc::{rc::Rc,string::String,vec::Vec};
+use alloc::{string::String, vec::Vec};
+use core::fmt::{self, Display};
 
 use num_bigint::BigInt;
 
@@ -9,13 +9,13 @@ use crate::ast::AstNodes;
 #[derive(Debug, Clone)]
 pub enum CrValue {
     Number(BigInt),
-    Function(Vec<String>, Vec<Rc<AstNodes>>),
-    List(usize, Vec<Rc<CrValue>>),
+    Function(Vec<String>, Vec<AstNodes>),
+    List(usize, Vec<CrValue>),
     Void,
 }
 
 impl Display for CrValue {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Number(number) => write!(f, "{}", number),
             Self::Function(_, _) => write!(f, "function"),
@@ -40,14 +40,14 @@ impl CrValue {
         }
     }
 
-    pub fn into_list(&self) -> Result<(usize, &Vec<Rc<CrValue>>)> {
+    pub fn into_list(&self) -> Result<(usize, &Vec<CrValue>)> {
         match self {
             CrValue::List(start_len, list) => Ok((*start_len, list)),
             _ => Err(Error::UseVoidValue),
         }
     }
 
-    pub fn into_list_mut(&mut self) -> Result<(&mut usize, &mut Vec<Rc<CrValue>>)> {
+    pub fn into_list_mut(&mut self) -> Result<(&mut usize, &mut Vec<CrValue>)> {
         match self {
             CrValue::List(start_len, list) => Ok((start_len, list)),
             _ => Err(Error::UseVoidValue),

@@ -124,7 +124,7 @@ impl Interpreter {
         template: &Rc<AstNodes>,
         num: &Rc<AstNodes>,
     ) -> Result<CrValue> {
-        let template_value = Rc::new(self.visit(template)?);
+        let template_value = self.visit(template)?;
         let num = *self
             .visit(num)?
             .into_int()?
@@ -142,7 +142,7 @@ impl Interpreter {
     fn visit_list(&mut self, value_list: &Vec<Rc<AstNodes>>) -> Result<CrValue> {
         let mut values = Vec::with_capacity(value_list.len());
         for value in value_list {
-            values.push(Rc::new(self.visit(value)?));
+            values.push(self.visit(value)?);
         }
         Ok(CrValue::List(values.len(), values))
     }
