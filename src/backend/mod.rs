@@ -23,7 +23,7 @@ impl Interpreter {
     /// Creates a new Interpreter. \
     /// Example
     /// ```rust
-    /// use cara::back::Interpreter;
+    /// use cara::backend::Interpreter;
     /// let interpreter = Interpreter::new();
     /// ```
     pub fn new() -> Self {
@@ -37,8 +37,8 @@ impl Interpreter {
     /// Visits the AST node with the visitor mode. \
     /// Example
     /// ```rust
-    /// use cara::back::Interpreter;
-    /// use cara::front::{Parser,Lexer};
+    /// use cara::backend::Interpreter;
+    /// use cara::frontend::{Parser,Lexer};
     ///
     /// let mut lexer = Lexer::new("1+1".into());
     /// let mut parser = Parser::new(lexer);
@@ -47,8 +47,8 @@ impl Interpreter {
     /// let mut interpreter = Interpreter::new();
     /// assert_eq!(interpreter.visit(node),2);
     /// ```
-    pub fn visit(&mut self, node: &Rc<AstNodes>) -> Result<CrValue> {
-        match node.as_ref() {
+    pub fn visit(&mut self, node: &AstNodes) -> Result<CrValue> {
+        match node {
             AstNodes::Assign(id, index, value) => self.visit_assign(id, index, value),
             AstNodes::BinaryOp(left, op, right) => self.visit_binary_op(left, op, right),
             AstNodes::CompileUnit(statements) => self.visit_compile_unit(statements),
@@ -86,7 +86,7 @@ impl Interpreter {
     fn visit_while(
         &mut self,
         condition: &Rc<AstNodes>,
-        body: &Vec<Rc<AstNodes>>,
+        body: &Vec<AstNodes>,
     ) -> Result<CrValue> {
         let last_symbol_table = self.current_symbol_table.to_owned();
         let temp_symbol_table = Rc::new(RefCell::new(SymbolTable::new(Some(
@@ -131,15 +131,15 @@ impl Interpreter {
         for _ in 0..size {
             values.push(template_value.clone());
         }
-        Ok(CrValue::List(size as usize, values))
+        Ok(CrValue::List(values))
     }
 
-    fn visit_list(&mut self, value_list: &Vec<Rc<AstNodes>>) -> Result<CrValue> {
+    fn visit_list(&mut self, value_list: &Vec<AstNodes>) -> Result<CrValue> {
         let mut values = Vec::with_capacity(value_list.len());
         for value in value_list {
             values.push(self.visit(value)?);
         }
-        Ok(CrValue::List(values.len(), values))
+        Ok(CrValue::List(values))
     }
 
     fn visit_for(
@@ -148,7 +148,7 @@ impl Interpreter {
         start: &Rc<AstNodes>,
         end: &Rc<AstNodes>,
         step: &Rc<AstNodes>,
-        body: &Vec<Rc<AstNodes>>,
+        body: &Vec<AstNodes>,
     ) -> Result<CrValue> {
         let start = self.visit(&start)?.into_int()?;
         let end = self.visit(&end)?.into_int()?;
@@ -191,8 +191,8 @@ impl Interpreter {
     fn visit_if(
         &mut self,
         condition: &Rc<AstNodes>,
-        then_block: &Vec<Rc<AstNodes>>,
-        else_block: &Vec<Rc<AstNodes>>,
+        then_block: &Vec<AstNodes>,
+        else_block: &Vec<AstNodes>,
     ) -> Result<CrValue> {
         let condition = self.visit(condition)?;
         if condition.into_int()? > IBig::ZERO {
@@ -266,7 +266,7 @@ impl Interpreter {
         }))
     }
 
-    fn visit_compile_unit(&mut self, statements: &Vec<Rc<AstNodes>>) -> Result<CrValue> {
+    fn visit_compile_unit(&mut self, statements: &Vec<AstNodes>) -> Result<CrValue> {
         for item in statements {
             self.visit(item)?;
         }
@@ -310,15 +310,15 @@ impl Interpreter {
         &mut self,
         id: &String,
         params: &Vec<String>,
-        body: &Vec<Rc<AstNodes>>,
+        body: &Vec<AstNodes>,
     ) -> Result<CrValue> {
         self.current_symbol_table
             .borrow_mut()
-            .insert(Symbol::Function(id.clone(), params.clone(), body.clone()));
+            .insert(Symbol::Function(id.clone(), params.clone(), body.to_vec()));
         Ok(CrValue::Void)
     }
 
-    fn visit_call(&mut self, id: &String, args: &Vec<Rc<AstNodes>>) -> Result<CrValue> {
+    fn visit_call(&mut self, id: &String, args: &Vec<AstNodes>) -> Result<CrValue> {
         match id.as_str() {
             "print" => {
                 self.print(args)?;

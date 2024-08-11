@@ -1,4 +1,4 @@
-use alloc::{rc::Rc, vec::Vec};
+use alloc::vec::Vec;
 use core::fmt;
 use dashu_int::IBig;
 use spin::Mutex;
@@ -6,7 +6,7 @@ use spin::Mutex;
 use super::result::{Error, Result};
 use super::value::CrValue;
 use crate::ast::AstNodes;
-use crate::back::Interpreter;
+use crate::backend::Interpreter;
 
 static PRINTER: Mutex<Option<fn(fmt::Arguments)>> = Mutex::new(None);
 
@@ -22,7 +22,7 @@ pub(crate) fn print_message(args: fmt::Arguments) {
 }
 
 impl Interpreter {
-    pub(super) fn print(&mut self, args: &Vec<Rc<AstNodes>>) -> Result<()> {
+    pub(super) fn print(&mut self, args: &Vec<AstNodes>) -> Result<()> {
         args.iter()
             .map(|x| self.visit(x).unwrap())
             .for_each(|value| print_message(format_args!("{} ", value)));
@@ -30,11 +30,11 @@ impl Interpreter {
         Ok(())
     }
 
-    pub(super) fn append(&mut self, args: &Vec<Rc<AstNodes>>) -> Result<()> {
+    pub(super) fn append(&mut self, args: &Vec<AstNodes>) -> Result<()> {
         if args.len() != 2 {
             return Err(Error::ArgMismatch);
         }
-        if let AstNodes::ReadVar(id) = args[0].as_ref() {
+        if let AstNodes::ReadVar(id) = &args[0] {
             let value = self.visit(&args[1])?;
             self.current_symbol_table
                 .borrow_mut()
@@ -45,11 +45,11 @@ impl Interpreter {
         }
     }
 
-    pub(super) fn insert(&mut self, args: &Vec<Rc<AstNodes>>) -> Result<()> {
+    pub(super) fn insert(&mut self, args: &Vec<AstNodes>) -> Result<()> {
         if args.len() != 3 {
             return Err(Error::ArgMismatch);
         }
-        if let AstNodes::ReadVar(id) = args[0].as_ref() {
+        if let AstNodes::ReadVar(id) = &args[0] {
             let number = self.visit(&args[1])?.into_int()?;
             let index = usize::try_from(&number).unwrap();
             let value = self.visit(&args[2])?;
@@ -63,11 +63,11 @@ impl Interpreter {
         }
     }
 
-    pub(super) fn len(&mut self, args: &Vec<Rc<AstNodes>>) -> Result<CrValue> {
+    pub(super) fn len(&mut self, args: &Vec<AstNodes>) -> Result<CrValue> {
         if args.len() != 1 {
             return Err(Error::ArgMismatch);
         }
-        if let AstNodes::ReadVar(id) = args[0].as_ref() {
+        if let AstNodes::ReadVar(id) = &args[0] {
             let length = self
                 .current_symbol_table
                 .borrow_mut()
@@ -79,11 +79,11 @@ impl Interpreter {
         }
     }
 
-    pub(super) fn remove(&mut self, args: &Vec<Rc<AstNodes>>) -> Result<CrValue> {
+    pub(super) fn remove(&mut self, args: &Vec<AstNodes>) -> Result<CrValue> {
         if args.len() != 2 {
             return Err(Error::ArgMismatch);
         }
-        if let AstNodes::ReadVar(id) = args[0].as_ref() {
+        if let AstNodes::ReadVar(id) = &args[0] {
             let number = self.visit(&args[1])?.into_int()?;
             let index = usize::try_from(&number).unwrap();
 

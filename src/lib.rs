@@ -1,5 +1,5 @@
 #![no_std]
-#![deny(unsafe_code)]
+// #![deny(unsafe_code)]
 
 extern crate alloc;
 
@@ -8,5 +8,5 @@ extern crate alloc;
 static GLOBAL: snmalloc_rs::SnMalloc = snmalloc_rs::SnMalloc;
 
 pub mod ast;
-pub mod back;
-pub mod front;
+pub mod backend;
+pub mod frontend;

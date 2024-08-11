@@ -1,4 +1,4 @@
-use alloc::{rc::Rc, string::String, vec::Vec};
+use alloc::{string::String, vec::Vec};
 use dashu_int::IBig;
 
 use super::{KeywordTypes, Lexer, Token};
@@ -14,7 +14,7 @@ impl Parser {
     /// Creates a parser with a lexer. \
     /// Expample
     /// ```rust
-    /// use cara::front::{Lexer,Parser};
+    /// use cara::frontend::{Lexer,Parser};
     /// let lexer = Lexer::new("1+1".into());
     /// let mut parser = Parser::new(lexer);
     /// ```
@@ -53,7 +53,7 @@ impl Parser {
     /// Returns the whole AST. \
     /// Expample
     /// ```rust
-    /// use cara::front::{Lexer, Parser};
+    /// use cara::frontend::{Lexer, Parser};
     /// let lexer = Lexer::new("1-(5+7)/2+2*3-100".into());
     /// let mut parser = Parser::new(lexer);
     /// let ast = parser.parse_compile_unit();
@@ -101,15 +101,15 @@ impl Parser {
     ///     ),
     /// )*/
     /// ```
-    pub fn parse_compile_unit(&mut self) -> Rc<AstNodes> {
+    pub fn parse_compile_unit(&mut self) -> AstNodes {
         let mut children = Vec::new();
         while let Some(_) = self.current_token {
             children.push(self.parse_statement());
         }
-        Rc::new(AstNodes::CompileUnit(children))
+        AstNodes::CompileUnit(children)
     }
 
-    fn parse_statement(&mut self) -> Rc<AstNodes> {
+    fn parse_statement(&mut self) -> AstNodes {
         if let Some(current_token) = self.current_token.clone() {
             match current_token {
                 Token::Keyword(key_word) => {
@@ -139,26 +139,26 @@ impl Parser {
         panic!("Nothing to parse!");
     }
 
-    fn parse_break(&mut self) -> Rc<AstNodes> {
+    fn parse_break(&mut self) -> AstNodes {
         self.advance();
-        Rc::new(AstNodes::Break)
+        AstNodes::Break
     }
 
-    fn parse_continue(&mut self) -> Rc<AstNodes> {
+    fn parse_continue(&mut self) -> AstNodes {
         self.advance();
-        Rc::new(AstNodes::Continue)
+        AstNodes::Continue
     }
 
-    fn parse_while(&mut self) -> Rc<AstNodes> {
+    fn parse_while(&mut self) -> AstNodes {
         self.advance();
         let condition = self.parse_expr();
         self.eat(Token::LBrace);
         let body = self.parse_block();
         self.eat(Token::RBrace);
-        Rc::new(AstNodes::While(condition, body))
+        AstNodes::While(condition.into(), body)
     }
 
-    fn parse_list(&mut self) -> Rc<AstNodes> {
+    fn parse_list(&mut self) -> AstNodes {
         self.eat(Token::LBracket);
         let mut value_list = Vec::new();
 
@@ -170,7 +170,7 @@ impl Parser {
                 self.advance();
                 let num = self.parse_expr();
                 self.eat(Token::RBracket);
-                return Rc::new(AstNodes::TemplateList(first_value, num));
+                return AstNodes::TemplateList(first_value.into(), num.into());
             } else {
                 value_list.push(first_value.clone());
                 while let Some(token) = self.current_token.clone() {
@@ -185,10 +185,10 @@ impl Parser {
         }
 
         self.eat(Token::RBracket);
-        Rc::new(AstNodes::List(value_list))
+        AstNodes::List(value_list)
     }
 
-    fn parse_for(&mut self) -> Rc<AstNodes> {
+    fn parse_for(&mut self) -> AstNodes {
         self.advance();
 
         let variable = self.eat(Token::Id("".into())).as_ident().unwrap();
@@ -204,7 +204,7 @@ impl Parser {
             self.advance();
             self.parse_expr()
         } else {
-            Rc::new(AstNodes::Number(IBig::from(1)))
+            AstNodes::Number(IBig::from(1))
         };
 
         self.eat(Token::RParen);
@@ -213,10 +213,10 @@ impl Parser {
         let body = self.parse_block();
         self.eat(Token::RBrace);
 
-        Rc::new(AstNodes::For(variable, start, end, step, body))
+        AstNodes::For(variable, start.into(), end.into(), step.into(), body)
     }
 
-    fn parse_if(&mut self) -> Rc<AstNodes> {
+    fn parse_if(&mut self) -> AstNodes {
         self.advance();
         //self.eat(Token::LParen);
         let condition = self.parse_expr();
@@ -236,10 +236,10 @@ impl Parser {
             Vec::new()
         };
 
-        Rc::new(AstNodes::If(condition, then_block, else_block))
+        AstNodes::If(condition.into(), then_block, else_block)
     }
 
-    fn parse_block(&mut self) -> Vec<Rc<AstNodes>> {
+    fn parse_block(&mut self) -> Vec<AstNodes> {
         let mut children = Vec::new();
         while let Some(_) = self.current_token {
             if let Some(Token::RBrace) = self.current_token {
@@ -250,14 +250,14 @@ impl Parser {
         children
     }
 
-    fn parse_return(&mut self) -> Rc<AstNodes> {
+    fn parse_return(&mut self) -> AstNodes {
         self.advance();
         let expr = self.parse_expr();
         self.eat(Token::Semi);
-        Rc::new(AstNodes::Return(expr))
+        AstNodes::Return(expr.into())
     }
 
-    fn parse_function(&mut self) -> Rc<AstNodes> {
+    fn parse_function(&mut self) -> AstNodes {
         self.advance();
         let id = self.eat(Token::Id("".into())).as_ident().unwrap();
 
@@ -278,7 +278,7 @@ impl Parser {
 
         self.eat(Token::RBrace);
 
-        Rc::new(AstNodes::FunctionDef(id, params, body))
+        AstNodes::FunctionDef(id, params, body)
     }
 
     fn parse_params(&mut self) -> Vec<String> {
@@ -306,7 +306,7 @@ impl Parser {
         params
     }
 
-    fn parse_const(&mut self) -> Rc<AstNodes> {
+    fn parse_const(&mut self) -> AstNodes {
         self.advance();
 
         let id = self.eat(Token::Id("".into())).as_ident().unwrap();
@@ -317,10 +317,10 @@ impl Parser {
 
         self.eat(Token::Semi);
 
-        Rc::new(AstNodes::ConstDef(id, init_val))
+        AstNodes::ConstDef(id, init_val.into())
     }
 
-    fn parse_var(&mut self) -> Rc<AstNodes> {
+    fn parse_var(&mut self) -> AstNodes {
         self.advance();
 
         let id = self.eat(Token::Id("".into())).as_ident().unwrap();
@@ -335,17 +335,17 @@ impl Parser {
 
         self.eat(Token::Semi);
 
-        Rc::new(AstNodes::VarDef(id, init_val))
+        AstNodes::VarDef(id, init_val.into())
     }
 
-    fn parse_assign(&mut self) -> Rc<AstNodes> {
+    fn parse_assign(&mut self) -> AstNodes {
         let id = self.eat(Token::Id("".into())).as_ident().unwrap();
 
         let index = if let Some(Token::LBracket) = self.current_token {
             self.advance();
             let index = self.parse_expr();
             self.eat(Token::RBracket);
-            Some(index)
+            Some(index.into())
         } else {
             None
         };
@@ -356,17 +356,17 @@ impl Parser {
 
         self.eat(Token::Semi);
 
-        Rc::new(AstNodes::Assign(id, index, expr))
+        AstNodes::Assign(id, index, expr.into())
     }
 
-    fn parse_expr(&mut self) -> Rc<AstNodes> {
+    fn parse_expr(&mut self) -> AstNodes {
         let mut node = self.parse_eq_expr();
         while let Some(current_token) = self.current_token.clone() {
             if let Some(op) = current_token.as_operator() {
                 match op {
                     "||" | "&&" => {
                         self.advance();
-                        node = Rc::new(AstNodes::BinaryOp(node, op, self.parse_eq_expr()));
+                        node = AstNodes::BinaryOp(node.into(), op, self.parse_eq_expr().into());
                     }
                     _ => break,
                 }
@@ -377,14 +377,14 @@ impl Parser {
         node
     }
 
-    fn parse_eq_expr(&mut self) -> Rc<AstNodes> {
+    fn parse_eq_expr(&mut self) -> AstNodes {
         let mut node = self.parse_add_expr();
         while let Some(current_token) = self.current_token.clone() {
             if let Some(op) = current_token.as_operator() {
                 match op {
                     "==" | "!=" | ">=" | "<=" | "<" | ">" => {
                         self.advance();
-                        node = Rc::new(AstNodes::BinaryOp(node, op, self.parse_add_expr()));
+                        node = AstNodes::BinaryOp(node.into(), op, self.parse_add_expr().into());
                     }
                     _ => break,
                 }
@@ -395,14 +395,14 @@ impl Parser {
         node
     }
 
-    fn parse_add_expr(&mut self) -> Rc<AstNodes> {
+    fn parse_add_expr(&mut self) -> AstNodes {
         let mut node = self.parse_move_expr();
         while let Some(current_token) = self.current_token.clone() {
             if let Some(op) = current_token.as_operator() {
                 match op {
                     "+" | "-" => {
                         self.advance();
-                        node = Rc::new(AstNodes::BinaryOp(node, op, self.parse_move_expr()));
+                        node = AstNodes::BinaryOp(node.into(), op, self.parse_move_expr().into());
                     }
                     _ => break,
                 }
@@ -413,14 +413,14 @@ impl Parser {
         node
     }
 
-    fn parse_move_expr(&mut self) -> Rc<AstNodes> {
+    fn parse_move_expr(&mut self) -> AstNodes {
         let mut node = self.parse_term();
         while let Some(current_token) = self.current_token.clone() {
             if let Some(op) = current_token.as_operator() {
                 match op {
                     "<<" | ">>" => {
                         self.advance();
-                        node = Rc::new(AstNodes::BinaryOp(node, op, self.parse_term()));
+                        node = AstNodes::BinaryOp(node.into(), op, self.parse_term().into());
                     }
                     _ => break,
                 }
@@ -431,14 +431,14 @@ impl Parser {
         node
     }
 
-    fn parse_term(&mut self) -> Rc<AstNodes> {
+    fn parse_term(&mut self) -> AstNodes {
         let mut node = self.parse_factor();
         while let Some(current_token) = self.current_token.clone() {
             if let Some(op) = current_token.as_operator() {
                 match op {
                     "*" | "/" | "%" => {
                         self.advance();
-                        node = Rc::new(AstNodes::BinaryOp(node, op, self.parse_factor()));
+                        node = AstNodes::BinaryOp(node.into(), op, self.parse_factor().into());
                     }
                     _ => break,
                 }
@@ -449,12 +449,12 @@ impl Parser {
         node
     }
 
-    fn parse_factor(&mut self) -> Rc<AstNodes> {
+    fn parse_factor(&mut self) -> AstNodes {
         let token = self.current_token.clone().unwrap();
         match token {
             Token::Number(num) => {
                 self.advance();
-                Rc::new(AstNodes::Number(num))
+                AstNodes::Number(num)
             }
             Token::LParen => {
                 self.advance();
@@ -466,7 +466,7 @@ impl Parser {
                 "+" | "-" => {
                     self.advance();
                     let node = self.parse_expr();
-                    Rc::new(AstNodes::UnaryOp(op, node))
+                    AstNodes::UnaryOp(op, node.into())
                 }
                 _ => panic!("Unexpected unary operator {}!", op),
             },
@@ -480,17 +480,17 @@ impl Parser {
                     self.advance();
                     let index_value = self.parse_expr();
                     self.eat(Token::RBracket);
-                    Rc::new(AstNodes::Index(id, index_value))
+                    AstNodes::Index(id, index_value.into())
                 } else {
                     self.advance();
-                    Rc::new(AstNodes::ReadVar(id))
+                    AstNodes::ReadVar(id)
                 }
             }
             _ => panic!("Syntax error {:?}!", token),
         }
     }
 
-    fn parse_call(&mut self, stmt: bool) -> Rc<AstNodes> {
+    fn parse_call(&mut self, stmt: bool) -> AstNodes {
         let id = self.eat(Token::Id("".into())).as_ident().unwrap();
 
         self.eat(Token::LParen);
@@ -503,10 +503,10 @@ impl Parser {
             self.eat(Token::Semi);
         }
 
-        Rc::new(AstNodes::Call(id, args))
+        AstNodes::Call(id, args)
     }
 
-    fn parse_args(&mut self) -> Vec<Rc<AstNodes>> {
+    fn parse_args(&mut self) -> Vec<AstNodes> {
         let mut args = Vec::new();
         while let Some(current_token) = self.current_token.clone() {
             if current_token != Token::RParen {

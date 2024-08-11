@@ -94,7 +94,7 @@ impl Lexer {
     /// Creates a new Lexer with the input. \
     /// Example
     /// ``` rust
-    /// use cara::front::Lexer;
+    /// use cara::frontend::Lexer;
     /// let lexer = Lexer::new("1+2*3".into());
     /// ```
     pub fn new(input: String) -> Self {
@@ -117,7 +117,7 @@ impl Lexer {
     /// Let the lexer parse a token and return it. \
     /// Example
     /// ```rust
-    /// use cara::front::Lexer;
+    /// use cara::frontend::Lexer;
     /// let mut lexer = Lexer::new("1+2*3".into());
     /// while let Some(token) = lexer.get_token() {
     ///     print!("{:?} ", token);

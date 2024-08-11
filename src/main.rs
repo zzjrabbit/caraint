@@ -2,8 +2,8 @@ use std::env::args;
 use std::fs::File;
 use std::io::Read;
 
-use cara::back::Interpreter;
-use cara::front::{Lexer, Parser};
+use cara::backend::Interpreter;
+use cara::frontend::{Lexer, Parser};
 
 fn main() {
     let mut code = String::new();
@@ -14,7 +14,7 @@ fn main() {
         .read_to_string(&mut code)
         .expect("Unable to read cara source file!");
 
-    cara::back::set_printer(|args| print!("{}", args));
+    cara::backend::set_printer(|args| print!("{}", args));
 
     let lexer = Lexer::new(code);
     let mut parser = Parser::new(lexer);

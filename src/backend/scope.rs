@@ -11,7 +11,7 @@ use crate::ast::AstNodes;
 pub enum Symbol {
     Const(String, CrValue),
     Var(String, CrValue),
-    Function(String, Vec<String>, Vec<Rc<AstNodes>>),
+    Function(String, Vec<String>, Vec<AstNodes>),
 }
 
 impl Symbol {
@@ -97,7 +97,7 @@ impl SymbolTable {
     #[inline]
     pub fn symbol_crvalue_len(&self, id: &str) -> Result<usize> {
         if let Some(symbol) = self.symbols.get(id) {
-            let (_, list) = symbol.get_value()?.into_list()?;
+            let list = symbol.get_value()?.into_list()?;
             Ok(list.len())
         } else if let Some(father) = &self.father {
             father.borrow().symbol_crvalue_len(id)
@@ -109,7 +109,7 @@ impl SymbolTable {
     #[inline]
     pub fn symbol_crvalue_list_item(&self, id: &str, index: usize) -> Result<CrValue> {
         if let Some(symbol) = self.symbols.get(id) {
-            let (_, list) = symbol.get_value()?.into_list()?;
+            let list = symbol.get_value()?.into_list()?;
             Ok(list[index].clone())
         } else if let Some(father) = &self.father {
             father.borrow().symbol_crvalue_list_item(id, index)
@@ -131,14 +131,8 @@ impl SymbolTable {
     #[inline]
     pub fn symbol_list_append(&mut self, id: &str, value: CrValue) -> Result<()> {
         if let Some(symbol) = self.symbols.get_mut(id) {
-            let (start_len, list) = symbol.get_value_mut()?.into_list_mut()?;
-
+            let list = symbol.get_value_mut()?.into_list_mut()?;
             list.push(value);
-
-            if list.len() > *start_len * 2 {
-                *start_len = list.len() * 2;
-                let _ = list.try_reserve(list.len() * 2);
-            }
         } else if let Some(father) = &self.father {
             father.borrow_mut().symbol_list_append(id, value)?;
         }
@@ -148,14 +142,8 @@ impl SymbolTable {
     #[inline]
     pub fn symbol_list_insert(&mut self, id: &str, index: usize, value: CrValue) -> Result<()> {
         if let Some(symbol) = self.symbols.get_mut(id) {
-            let (start_len, list) = symbol.get_value_mut()?.into_list_mut()?;
-
+            let list = symbol.get_value_mut()?.into_list_mut()?;
             list.insert(index, value);
-
-            if list.len() > *start_len * 2 {
-                *start_len = list.len() * 2;
-                let _ = list.try_reserve(list.len() * 2);
-            }
         } else if let Some(father) = &self.father {
             father.borrow_mut().symbol_list_insert(id, index, value)?;
         }
@@ -165,7 +153,7 @@ impl SymbolTable {
     #[inline]
     pub fn symbol_list_modify(&mut self, id: &str, index: usize, value: CrValue) -> Result<()> {
         if let Some(symbol) = self.symbols.get_mut(id) {
-            let (_, list) = symbol.get_value_mut()?.into_list_mut()?;
+            let list = symbol.get_value_mut()?.into_list_mut()?;
             list[index] = value;
         } else if let Some(father) = &self.father {
             father.borrow_mut().symbol_list_modify(id, index, value)?;
@@ -176,7 +164,7 @@ impl SymbolTable {
     #[inline]
     pub fn symbol_list_remove(&mut self, id: &str, index: usize) -> Result<CrValue> {
         if let Some(symbol) = self.symbols.get_mut(id) {
-            let (_, list) = symbol.get_value_mut()?.into_list_mut()?;
+            let list = symbol.get_value_mut()?.into_list_mut()?;
             Ok(list.remove(index as usize))
         } else if let Some(father) = &self.father {
             Ok(father.borrow_mut().symbol_list_remove(id, index)?)

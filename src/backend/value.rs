@@ -9,7 +9,7 @@ use crate::ast::AstNodes;
 pub enum CrValue {
     Number(IBig),
     Function(Vec<String>, Vec<AstNodes>),
-    List(usize, Vec<CrValue>),
+    List(Vec<CrValue>),
     Void,
 }
 
@@ -19,7 +19,7 @@ impl Display for CrValue {
             Self::Number(number) => write!(f, "{}", number),
             Self::Function(_, _) => write!(f, "function"),
             Self::Void => write!(f, "void"),
-            Self::List(_, data) => {
+            Self::List(data) => {
                 write!(f, "[")?;
                 for item in data.iter() {
                     write!(f, "{},", item)?;
@@ -39,16 +39,16 @@ impl CrValue {
         }
     }
 
-    pub fn into_list(&self) -> Result<(usize, &Vec<CrValue>)> {
+    pub fn into_list(&self) -> Result<&Vec<CrValue>> {
         match self {
-            CrValue::List(start_len, list) => Ok((*start_len, list)),
+            CrValue::List(list) => Ok(list),
             _ => Err(Error::UseVoidValue),
         }
     }
 
-    pub fn into_list_mut(&mut self) -> Result<(&mut usize, &mut Vec<CrValue>)> {
+    pub fn into_list_mut(&mut self) -> Result<&mut Vec<CrValue>> {
         match self {
-            CrValue::List(start_len, list) => Ok((start_len, list)),
+            CrValue::List(list) => Ok(list),
             _ => Err(Error::UseVoidValue),
         }
     }
