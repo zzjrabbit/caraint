@@ -42,7 +42,7 @@ pub enum Token {
     /// Numbers, such as 0,1,2,1234,114514 and so on.
     Number(IBig),
     /// Operators, +,-,*,/,......
-    Operator(&'static str),
+    Operator(String),
     /// Left paren, (
     LParen,
     /// Right paren, )
@@ -69,9 +69,9 @@ pub enum Token {
 
 impl Token {
     /// This function returns the operator if the token is, otherwise it returns None.
-    pub fn as_operator(&self) -> Option<&'static str> {
+    pub fn as_operator(&self) -> Option<String> {
         match self {
-            Token::Operator(ch) => Some(*ch),
+            Token::Operator(ch) => Some(ch.clone()),
             _ => None,
         }
     }
@@ -142,55 +142,55 @@ impl Lexer {
                     return Some(Token::Number(number));
                 }
                 '+' | '-' | '*' | '/' => {
-                    return Some(Token::Operator(<char as Into<String>>::into(ch).leak()))
+                    return Some(Token::Operator(<char as Into<String>>::into(ch)))
                 }
                 '(' => return Some(Token::LParen),
                 ')' => return Some(Token::RParen),
                 '=' => {
                     if self.current_char() == '=' {
                         self.advance();
-                        return Some(Token::Operator("=="));
+                        return Some(Token::Operator("==".into()));
                     }
                     return Some(Token::Assign);
                 }
                 '!' => {
                     if self.current_char() == '=' {
                         self.advance();
-                        return Some(Token::Operator("!="));
+                        return Some(Token::Operator("!=".into()));
                     }
                     panic!("Unexpected charactor {}!", ch)
                 }
                 '>' => {
                     if self.current_char() == '=' {
                         self.advance();
-                        return Some(Token::Operator(">="));
+                        return Some(Token::Operator(">=".into()));
                     } else if self.current_char() == '>' {
                         self.advance();
-                        return Some(Token::Operator(">>"));
+                        return Some(Token::Operator(">>".into()));
                     }
-                    return Some(Token::Operator(">"));
+                    return Some(Token::Operator(">".into()));
                 }
                 '<' => {
                     if self.current_char() == '=' {
                         self.advance();
-                        return Some(Token::Operator("<="));
+                        return Some(Token::Operator("<=".into()));
                     } else if self.current_char() == '<' {
                         self.advance();
-                        return Some(Token::Operator("<<"));
+                        return Some(Token::Operator("<<".into()));
                     }
-                    return Some(Token::Operator("<"));
+                    return Some(Token::Operator("<".into()));
                 }
                 '|' => {
                     if self.current_char() == '|' {
                         self.advance();
-                        return Some(Token::Operator("||"));
+                        return Some(Token::Operator("||".into()));
                     }
                     panic!("Unexpected charactor {}!", ch)
                 }
                 '&' => {
                     if self.current_char() == '&' {
                         self.advance();
-                        return Some(Token::Operator("&&"));
+                        return Some(Token::Operator("&&".into()));
                     }
                     panic!("Unexpected charactor {}!", ch)
                 }

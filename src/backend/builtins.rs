@@ -5,8 +5,8 @@ use spin::Mutex;
 
 use super::result::{Error, Result};
 use super::value::CrValue;
+use super::Interpreter;
 use crate::ast::AstNodes;
-use crate::backend::Interpreter;
 
 static PRINTER: Mutex<Option<fn(fmt::Arguments)>> = Mutex::new(None);
 

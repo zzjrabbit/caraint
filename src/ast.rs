@@ -6,8 +6,8 @@ use dashu_int::IBig;
 pub enum AstNodes {
     Assign(String, Option<Rc<AstNodes>>, Rc<AstNodes>),
     CompileUnit(Vec<AstNodes>),
-    BinaryOp(Rc<AstNodes>, &'static str, Rc<AstNodes>),
-    UnaryOp(&'static str, Rc<AstNodes>),
+    BinaryOp(Rc<AstNodes>, String, Rc<AstNodes>),
+    UnaryOp(String, Rc<AstNodes>),
     Number(IBig),
     VarDef(String, Rc<AstNodes>),
     ConstDef(String, Rc<AstNodes>),

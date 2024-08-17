@@ -226,13 +226,13 @@ impl Interpreter {
     fn visit_binary_op(
         &mut self,
         left: &Rc<AstNodes>,
-        op: &&'static str,
+        op: &String,
         right: &Rc<AstNodes>,
     ) -> Result<CrValue> {
         let left = self.visit(&left)?.into_int()?;
         let right = self.visit(&right)?.into_int()?;
 
-        Ok(CrValue::Number(match *op {
+        Ok(CrValue::Number(match op.as_str() {
             "+" => left + right,
             "-" => left - right,
             "*" => left * right,
@@ -267,9 +267,9 @@ impl Interpreter {
     }
 
     #[inline]
-    fn visit_unary_op(&mut self, op: &&'static str, val: &Rc<AstNodes>) -> Result<CrValue> {
+    fn visit_unary_op(&mut self, op: &String, val: &Rc<AstNodes>) -> Result<CrValue> {
         let value = self.visit(&val)?.into_int()?;
-        let result = match *op {
+        let result = match op.as_str() {
             "-" => -value,
             _ => value,
         };

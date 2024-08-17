@@ -51,14 +51,17 @@ impl Parser {
     }
 
     /// Returns the whole AST. \
-    /// Expample
+    /// ### Expample
     /// ```rust
     /// use cara::frontend::{Lexer, Parser};
     /// let lexer = Lexer::new("1-(5+7)/2+2*3-100".into());
     /// let mut parser = Parser::new(lexer);
     /// let ast = parser.parse_compile_unit();
     /// println!("{:#?}",ast);
-    /// /* Output:
+    /// ```
+    /// 
+    /// ### Output:
+    /// ```
     /// CompileUnit(
     ///     BinaryOp(
     ///         BinaryOp(
@@ -363,7 +366,7 @@ impl Parser {
         let mut node = self.parse_eq_expr();
         while let Some(current_token) = self.current_token.clone() {
             if let Some(op) = current_token.as_operator() {
-                match op {
+                match op.as_str() {
                     "||" | "&&" => {
                         self.advance();
                         node = AstNodes::BinaryOp(node.into(), op, self.parse_eq_expr().into());
@@ -381,7 +384,7 @@ impl Parser {
         let mut node = self.parse_add_expr();
         while let Some(current_token) = self.current_token.clone() {
             if let Some(op) = current_token.as_operator() {
-                match op {
+                match op.as_str() {
                     "==" | "!=" | ">=" | "<=" | "<" | ">" => {
                         self.advance();
                         node = AstNodes::BinaryOp(node.into(), op, self.parse_add_expr().into());
@@ -399,7 +402,7 @@ impl Parser {
         let mut node = self.parse_move_expr();
         while let Some(current_token) = self.current_token.clone() {
             if let Some(op) = current_token.as_operator() {
-                match op {
+                match op.as_str() {
                     "+" | "-" => {
                         self.advance();
                         node = AstNodes::BinaryOp(node.into(), op, self.parse_move_expr().into());
@@ -417,7 +420,7 @@ impl Parser {
         let mut node = self.parse_term();
         while let Some(current_token) = self.current_token.clone() {
             if let Some(op) = current_token.as_operator() {
-                match op {
+                match op.as_str() {
                     "<<" | ">>" => {
                         self.advance();
                         node = AstNodes::BinaryOp(node.into(), op, self.parse_term().into());
@@ -435,7 +438,7 @@ impl Parser {
         let mut node = self.parse_factor();
         while let Some(current_token) = self.current_token.clone() {
             if let Some(op) = current_token.as_operator() {
-                match op {
+                match op.as_str() {
                     "*" | "/" | "%" => {
                         self.advance();
                         node = AstNodes::BinaryOp(node.into(), op, self.parse_factor().into());
@@ -462,7 +465,7 @@ impl Parser {
                 self.eat(Token::RParen);
                 node
             }
-            Token::Operator(op) => match op {
+            Token::Operator(op) => match op.as_str() {
                 "+" | "-" => {
                     self.advance();
                     let node = self.parse_expr();
