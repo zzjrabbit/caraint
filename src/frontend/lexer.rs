@@ -19,8 +19,9 @@ pub enum KeywordTypes {
 }
 
 impl KeywordTypes {
-    pub fn from_string(string: String) -> Option<Self> {
-        match string.as_str() {
+    #[must_use]
+    pub fn from_string(string: &str) -> Option<Self> {
+        match string {
             "var" => Some(Self::Var),
             "const" => Some(Self::Const),
             "fn" => Some(Self::Fn),
@@ -43,42 +44,44 @@ pub enum Token {
     Number(IBig),
     /// Operators, +,-,*,/,......
     Operator(String),
-    /// Left paren, (
+    /// `Left paren`, (
     LParen,
-    /// Right paren, )
+    /// `Right paren`, )
     RParen,
-    /// Identifiers
+    /// `Identifiers`
     Id(String),
-    /// Keywords
+    /// `Keywords`
     Keyword(KeywordTypes),
-    /// Assign, =
+    /// `Assign`, =
     Assign,
-    /// Semi
+    /// `Semi`
     Semi,
-    /// LBrace, {
+    /// `LBrace`, {
     LBrace,
-    /// RBrace, }
+    /// `RBrace`, }
     RBrace,
-    /// Comma, ,
+    /// `Comma`, ,
     Comma,
-    /// LBracket, {
+    /// `LBracket`, {
     LBracket,
-    /// RBracket, }
+    /// `RBracket`, }
     RBracket,
 }
 
 impl Token {
     /// This function returns the operator if the token is, otherwise it returns None.
+    #[must_use]
     pub fn as_operator(&self) -> Option<String> {
         match self {
-            Token::Operator(ch) => Some(ch.clone()),
+            Self::Operator(ch) => Some(ch.clone()),
             _ => None,
         }
     }
 
+    #[must_use]
     pub fn as_ident(&self) -> Option<String> {
         match self {
-            Token::Id(id) => Some(id.clone()),
+            Self::Id(id) => Some(id.clone()),
             _ => None,
         }
     }
@@ -97,7 +100,8 @@ impl Lexer {
     /// use cara::frontend::Lexer;
     /// let lexer = Lexer::new("1+2*3".into());
     /// ```
-    pub fn new(input: String) -> Self {
+    #[must_use]
+    pub const fn new(input: String) -> Self {
         Self { input, position: 0 }
     }
 
@@ -110,6 +114,7 @@ impl Lexer {
         c
     }
 
+    #[must_use]
     pub fn current_char(&self) -> char {
         self.input.chars().nth(self.position).unwrap_or('\0')
     }
@@ -212,7 +217,7 @@ impl Lexer {
                             }
                             id.push(ch);
                         }
-                        if let Some(keyword_type) = KeywordTypes::from_string(id.clone()) {
+                        if let Some(keyword_type) = KeywordTypes::from_string(&id) {
                             return Some(Token::Keyword(keyword_type));
                         }
                         return Some(Token::Id(id));

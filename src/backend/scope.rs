@@ -17,32 +17,28 @@ pub enum Symbol {
 impl Symbol {
     pub fn get_id(&self) -> &str {
         match self {
-            Symbol::Const(id, _) => id,
-            Symbol::Var(id, _) => id,
-            Symbol::Function(id, _, _) => id,
+            Self::Const(id, _) | Self::Var(id, _) | Self::Function(id, _, _) => id,
         }
     }
 
-    pub fn get_value(&self) -> Result<&CrValue> {
+    pub const fn get_value(&self) -> Result<&CrValue> {
         match self {
-            Symbol::Const(_, value) => Ok(value),
-            Symbol::Var(_, value) => Ok(value),
-            Symbol::Function(_, _, _) => Err(Error::UseVoidValue),
+            Self::Const(_, value) | Self::Var(_, value) => Ok(value),
+            Self::Function(_, _, _) => Err(Error::UseVoidValue),
         }
     }
 
     pub fn get_value_mut(&mut self) -> Result<&mut CrValue> {
         match self {
-            Symbol::Const(_, value) => Ok(value),
-            Symbol::Var(_, value) => Ok(value),
-            Symbol::Function(_, _, _) => Err(Error::UseVoidValue),
+            Self::Const(_, value) | Self::Var(_, value) => Ok(value),
+            Self::Function(_, _, _) => Err(Error::UseVoidValue),
         }
     }
 
-    pub fn try_assign(&mut self, value: CrValue) -> Result<()> {
+    pub fn assign(&mut self, value: CrValue) -> Result<()> {
         match self {
-            Symbol::Const(_, _) | Symbol::Function(_, _, _) => return Err(Error::BadAssign),
-            Symbol::Var(_, old_value) => *old_value = value,
+            Self::Const(_, _) | Self::Function(_, _, _) => return Err(Error::BadAssign),
+            Self::Var(_, old_value) => *old_value = value,
         }
         Ok(())
     }
@@ -55,7 +51,7 @@ pub struct SymbolTable {
 }
 
 impl SymbolTable {
-    pub fn new(father: Option<Rc<RefCell<Self>>>) -> Self {
+    pub const fn new(father: Option<Rc<RefCell<Self>>>) -> Self {
         Self {
             symbols: BTreeMap::new(),
             father,
@@ -97,7 +93,7 @@ impl SymbolTable {
     #[inline]
     pub fn symbol_crvalue_len(&self, id: &str) -> Result<usize> {
         if let Some(symbol) = self.symbols.get(id) {
-            let list = symbol.get_value()?.into_list()?;
+            let list = symbol.get_value()?.as_list()?;
             Ok(list.len())
         } else if let Some(father) = &self.father {
             father.borrow().symbol_crvalue_len(id)
@@ -109,7 +105,7 @@ impl SymbolTable {
     #[inline]
     pub fn symbol_crvalue_list_item(&self, id: &str, index: usize) -> Result<CrValue> {
         if let Some(symbol) = self.symbols.get(id) {
-            let list = symbol.get_value()?.into_list()?;
+            let list = symbol.get_value()?.as_list()?;
             Ok(list[index].clone())
         } else if let Some(father) = &self.father {
             father.borrow().symbol_crvalue_list_item(id, index)
@@ -121,7 +117,7 @@ impl SymbolTable {
     #[inline]
     pub fn symbol_assign(&mut self, id: &str, value: CrValue) -> Result<()> {
         if let Some(symbol) = self.symbols.get_mut(id) {
-            symbol.try_assign(value)?;
+            symbol.assign(value)?;
         } else if let Some(father) = &self.father {
             father.borrow_mut().symbol_assign(id, value)?;
         }
@@ -131,7 +127,7 @@ impl SymbolTable {
     #[inline]
     pub fn symbol_list_append(&mut self, id: &str, value: CrValue) -> Result<()> {
         if let Some(symbol) = self.symbols.get_mut(id) {
-            let list = symbol.get_value_mut()?.into_list_mut()?;
+            let list = symbol.get_value_mut()?.as_list_mut()?;
             list.push(value);
         } else if let Some(father) = &self.father {
             father.borrow_mut().symbol_list_append(id, value)?;
@@ -142,7 +138,7 @@ impl SymbolTable {
     #[inline]
     pub fn symbol_list_insert(&mut self, id: &str, index: usize, value: CrValue) -> Result<()> {
         if let Some(symbol) = self.symbols.get_mut(id) {
-            let list = symbol.get_value_mut()?.into_list_mut()?;
+            let list = symbol.get_value_mut()?.as_list_mut()?;
             list.insert(index, value);
         } else if let Some(father) = &self.father {
             father.borrow_mut().symbol_list_insert(id, index, value)?;
@@ -153,7 +149,7 @@ impl SymbolTable {
     #[inline]
     pub fn symbol_list_modify(&mut self, id: &str, index: usize, value: CrValue) -> Result<()> {
         if let Some(symbol) = self.symbols.get_mut(id) {
-            let list = symbol.get_value_mut()?.into_list_mut()?;
+            let list = symbol.get_value_mut()?.as_list_mut()?;
             list[index] = value;
         } else if let Some(father) = &self.father {
             father.borrow_mut().symbol_list_modify(id, index, value)?;
@@ -164,8 +160,8 @@ impl SymbolTable {
     #[inline]
     pub fn symbol_list_remove(&mut self, id: &str, index: usize) -> Result<CrValue> {
         if let Some(symbol) = self.symbols.get_mut(id) {
-            let list = symbol.get_value_mut()?.into_list_mut()?;
-            Ok(list.remove(index as usize))
+            let list = symbol.get_value_mut()?.as_list_mut()?;
+            Ok(list.remove(index))
         } else if let Some(father) = &self.father {
             Ok(father.borrow_mut().symbol_list_remove(id, index)?)
         } else {

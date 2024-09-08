@@ -18,6 +18,7 @@ impl Parser {
     /// let lexer = Lexer::new("1+1".into());
     /// let mut parser = Parser::new(lexer);
     /// ```
+    #[must_use]
     pub fn new(mut lexer: Lexer) -> Self {
         let tok = lexer.get_token();
         Self {
@@ -106,7 +107,7 @@ impl Parser {
     /// ```
     pub fn parse_compile_unit(&mut self) -> AstNodes {
         let mut children = Vec::new();
-        while let Some(_) = self.current_token {
+        while self.current_token.is_some() {
             children.push(self.parse_statement());
         }
         AstNodes::CompileUnit(children)
@@ -165,19 +166,18 @@ impl Parser {
         self.eat(Token::LBracket);
         let mut value_list = Vec::new();
 
-        if let Some(Token::RBracket) = self.current_token {
-        } else {
+        if self.current_token != Some(Token::RBracket) {
             let first_value = self.parse_expr();
 
-            if let Some(Token::Semi) = self.current_token {
+            if self.current_token == Some(Token::Semi) {
                 self.advance();
                 let num = self.parse_expr();
                 self.eat(Token::RBracket);
                 return AstNodes::TemplateList(first_value.into(), num.into());
             } else {
-                value_list.push(first_value.clone());
+                value_list.push(first_value);
                 while let Some(token) = self.current_token.clone() {
-                    if let Token::RBracket = token {
+                    if token == Token::RBracket {
                         break;
                     }
                     self.eat(Token::Comma);
@@ -194,7 +194,7 @@ impl Parser {
     fn parse_for(&mut self) -> AstNodes {
         self.advance();
 
-        let variable = self.eat(Token::Id("".into())).as_ident().unwrap();
+        let variable = self.eat(Token::Id(String::new())).as_ident().unwrap();
 
         self.eat(Token::Keyword(KeywordTypes::In));
 
@@ -203,7 +203,7 @@ impl Parser {
         self.eat(Token::Comma);
         let end = self.parse_expr();
 
-        let step = if let Some(Token::Comma) = self.current_token {
+        let step = if self.current_token == Some(Token::Comma) {
             self.advance();
             self.parse_expr()
         } else {
@@ -229,7 +229,7 @@ impl Parser {
         let then_block = self.parse_block();
         self.eat(Token::RBrace);
 
-        let else_block = if let Some(Token::Keyword(KeywordTypes::Else)) = self.current_token {
+        let else_block = if self.current_token == Some(Token::Keyword(KeywordTypes::Else)) {
             self.advance();
             self.eat(Token::LBrace);
             let block = self.parse_block();
@@ -244,8 +244,8 @@ impl Parser {
 
     fn parse_block(&mut self) -> Vec<AstNodes> {
         let mut children = Vec::new();
-        while let Some(_) = self.current_token {
-            if let Some(Token::RBrace) = self.current_token {
+        while self.current_token.is_some() {
+            if self.current_token == Some(Token::RBrace) {
                 break;
             }
             children.push(self.parse_statement());
@@ -262,7 +262,7 @@ impl Parser {
 
     fn parse_function(&mut self) -> AstNodes {
         self.advance();
-        let id = self.eat(Token::Id("".into())).as_ident().unwrap();
+        let id = self.eat(Token::Id(String::new())).as_ident().unwrap();
 
         self.eat(Token::LParen);
         let params = self.parse_params();
@@ -272,10 +272,10 @@ impl Parser {
 
         let mut body = Vec::new();
         while let Some(current) = self.current_token.clone() {
-            if current != Token::RBrace {
-                body.push(self.parse_statement());
-            } else {
+            if current == Token::RBrace {
                 break;
+            } else {
+                body.push(self.parse_statement());
             }
         }
 
@@ -312,7 +312,7 @@ impl Parser {
     fn parse_const(&mut self) -> AstNodes {
         self.advance();
 
-        let id = self.eat(Token::Id("".into())).as_ident().unwrap();
+        let id = self.eat(Token::Id(String::new())).as_ident().unwrap();
 
         self.eat(Token::Assign);
 
@@ -326,11 +326,11 @@ impl Parser {
     fn parse_var(&mut self) -> AstNodes {
         self.advance();
 
-        let id = self.eat(Token::Id("".into())).as_ident().unwrap();
+        let id = self.eat(Token::Id(String::new())).as_ident().unwrap();
 
         self.eat(Token::Assign);
 
-        let init_val = if let Some(Token::LBracket) = self.current_token {
+        let init_val = if self.current_token == Some(Token::LBracket) {
             self.parse_list()
         } else {
             self.parse_expr()
@@ -342,9 +342,9 @@ impl Parser {
     }
 
     fn parse_assign(&mut self) -> AstNodes {
-        let id = self.eat(Token::Id("".into())).as_ident().unwrap();
+        let id = self.eat(Token::Id(String::new())).as_ident().unwrap();
 
-        let index = if let Some(Token::LBracket) = self.current_token {
+        let index = if self.current_token == Some(Token::LBracket) {
             self.advance();
             let index = self.parse_expr();
             self.eat(Token::RBracket);
@@ -475,9 +475,7 @@ impl Parser {
             },
             Token::Id(id) => {
                 if self.lexer.current_char() == '(' {
-                    let node = self.parse_call(false);
-                    //println!("{}",self.lexer.current_char());
-                    node
+                    self.parse_call(false)
                 } else if self.lexer.current_char() == '[' {
                     self.advance();
                     self.advance();
@@ -494,7 +492,7 @@ impl Parser {
     }
 
     fn parse_call(&mut self, stmt: bool) -> AstNodes {
-        let id = self.eat(Token::Id("".into())).as_ident().unwrap();
+        let id = self.eat(Token::Id(String::new())).as_ident().unwrap();
 
         self.eat(Token::LParen);
 
@@ -512,15 +510,15 @@ impl Parser {
     fn parse_args(&mut self) -> Vec<AstNodes> {
         let mut args = Vec::new();
         while let Some(current_token) = self.current_token.clone() {
-            if current_token != Token::RParen {
+            if current_token == Token::RParen {
+                break;
+            } else {
                 args.push(self.parse_expr());
-                if let Some(Token::Comma) = self.current_token {
+                if self.current_token == Some(Token::Comma) {
                     self.advance();
                 } else {
                     break;
                 }
-            } else {
-                break;
             }
         }
         args

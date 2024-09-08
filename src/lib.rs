@@ -1,5 +1,7 @@
 #![no_std]
 #![deny(unsafe_code)]
+#![warn(clippy::nursery)]
+#![allow(clippy::option_if_let_else)]
 
 extern crate alloc;
 

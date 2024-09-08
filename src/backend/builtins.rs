@@ -1,4 +1,3 @@
-use alloc::vec::Vec;
 use core::fmt;
 use dashu_int::IBig;
 use spin::Mutex;
@@ -15,22 +14,21 @@ pub fn set_printer(printer: fn(fmt::Arguments)) {
     *log = Some(printer);
 }
 
-pub(crate) fn print_message(args: fmt::Arguments) {
+pub fn print_message(args: fmt::Arguments) {
     if let Some(printer) = *PRINTER.lock() {
         printer(args);
     }
 }
 
 impl Interpreter {
-    pub(super) fn print(&mut self, args: &Vec<AstNodes>) -> Result<()> {
+    pub(super) fn print(&mut self, args: &[AstNodes]) {
         args.iter()
             .map(|x| self.visit(x).unwrap())
-            .for_each(|value| print_message(format_args!("{} ", value)));
+            .for_each(|value| print_message(format_args!("{value}")));
         print_message(format_args!("\n"));
-        Ok(())
     }
 
-    pub(super) fn append(&mut self, args: &Vec<AstNodes>) -> Result<()> {
+    pub(super) fn append(&mut self, args: &[AstNodes]) -> Result<()> {
         if args.len() != 2 {
             return Err(Error::ArgMismatch);
         }
@@ -38,24 +36,24 @@ impl Interpreter {
             let value = self.visit(&args[1])?;
             self.current_symbol_table
                 .borrow_mut()
-                .symbol_list_append(&id, value)?;
+                .symbol_list_append(id, value)?;
             Ok(())
         } else {
             Err(Error::ArgMismatch)
         }
     }
 
-    pub(super) fn insert(&mut self, args: &Vec<AstNodes>) -> Result<()> {
+    pub(super) fn insert(&mut self, args: &[AstNodes]) -> Result<()> {
         if args.len() != 3 {
             return Err(Error::ArgMismatch);
         }
         if let AstNodes::ReadVar(id) = &args[0] {
-            let number = self.visit(&args[1])?.into_int()?;
-            let index = usize::try_from(&number).unwrap();
+            let number = self.visit(&args[1])?;
+            let index = usize::try_from(number.as_int()?).unwrap();
             let value = self.visit(&args[2])?;
 
             let mut symbol_table = self.current_symbol_table.borrow_mut();
-            symbol_table.symbol_list_insert(&id, index, value)?;
+            symbol_table.symbol_list_insert(id, index, value)?;
 
             Ok(())
         } else {
@@ -63,7 +61,7 @@ impl Interpreter {
         }
     }
 
-    pub(super) fn len(&mut self, args: &Vec<AstNodes>) -> Result<CrValue> {
+    pub(super) fn len(&self, args: &[AstNodes]) -> Result<CrValue> {
         if args.len() != 1 {
             return Err(Error::ArgMismatch);
         }
@@ -71,7 +69,7 @@ impl Interpreter {
             let length = self
                 .current_symbol_table
                 .borrow_mut()
-                .symbol_crvalue_len(&id)?;
+                .symbol_crvalue_len(id)?;
             let value = CrValue::Number(IBig::from(length));
             Ok(value)
         } else {
@@ -79,18 +77,18 @@ impl Interpreter {
         }
     }
 
-    pub(super) fn remove(&mut self, args: &Vec<AstNodes>) -> Result<CrValue> {
+    pub(super) fn remove(&mut self, args: &[AstNodes]) -> Result<CrValue> {
         if args.len() != 2 {
             return Err(Error::ArgMismatch);
         }
         if let AstNodes::ReadVar(id) = &args[0] {
-            let number = self.visit(&args[1])?.into_int()?;
-            let index = usize::try_from(&number).unwrap();
+            let number = self.visit(&args[1])?;
+            let index = usize::try_from(number.as_int()?).unwrap();
 
             let list = self
                 .current_symbol_table
                 .borrow_mut()
-                .symbol_list_remove(&id, index)?;
+                .symbol_list_remove(id, index)?;
 
             Ok(list)
         } else {

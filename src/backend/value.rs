@@ -16,14 +16,12 @@ pub enum CrValue {
 impl Display for CrValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Number(number) => write!(f, "{}", number),
+            Self::Number(number) => write!(f, "{number}"),
             Self::Function(_, _) => write!(f, "function"),
             Self::Void => write!(f, "void"),
             Self::List(data) => {
                 write!(f, "[")?;
-                for item in data.iter() {
-                    write!(f, "{},", item)?;
-                }
+                data.iter().try_for_each(|item| write!(f, "{item},"))?;
                 write!(f, "]")?;
                 Ok(())
             }
@@ -32,23 +30,23 @@ impl Display for CrValue {
 }
 
 impl CrValue {
-    pub fn into_int(&self) -> Result<IBig> {
+    pub const fn as_int(&self) -> Result<&IBig> {
         match self {
-            CrValue::Number(num) => Ok(num.clone()),
+            Self::Number(num) => Ok(num),
             _ => Err(Error::UseVoidValue),
         }
     }
 
-    pub fn into_list(&self) -> Result<&Vec<CrValue>> {
+    pub const fn as_list(&self) -> Result<&Vec<Self>> {
         match self {
-            CrValue::List(list) => Ok(list),
+            Self::List(list) => Ok(list),
             _ => Err(Error::UseVoidValue),
         }
     }
 
-    pub fn into_list_mut(&mut self) -> Result<&mut Vec<CrValue>> {
+    pub fn as_list_mut(&mut self) -> Result<&mut Vec<Self>> {
         match self {
-            CrValue::List(list) => Ok(list),
+            Self::List(list) => Ok(list),
             _ => Err(Error::UseVoidValue),
         }
     }
