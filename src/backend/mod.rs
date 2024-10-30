@@ -16,6 +16,7 @@ mod value;
 pub use builtins::set_printer;
 
 /// The interpreter
+#[derive(Debug)]
 pub struct Interpreter {
     symbol_tables: SymbolTables,
     string_table: Vec<String>,
@@ -160,10 +161,11 @@ impl Interpreter {
 
         self.with_block(|this| {
             for number in (start..end).step_by(step) {
+                this.symbol_tables.clear_last();
+
                 let number = IBig::from(number);
                 let value = Symbol::Const(variable.to_owned(), CrValue::Number(number));
                 this.symbol_tables.insert_sym(value);
-                this.symbol_tables.clear_last();
 
                 for item in body {
                     match this.visit(item) {
