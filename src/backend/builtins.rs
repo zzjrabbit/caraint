@@ -32,11 +32,9 @@ impl Interpreter {
         if args.len() != 2 {
             return Err(Error::ArgMismatch);
         }
-        if let AstNodes::ReadVar(id) = &args[0] {
+        if let AstNodes::ReadVar(id) = args[0] {
             let value = self.visit(&args[1])?;
-            self.current_symbol_table
-                .borrow_mut()
-                .symbol_list_append(id, value)?;
+            self.symbol_tables.symbol_list_append(id, value)?;
             Ok(())
         } else {
             Err(Error::ArgMismatch)
@@ -47,13 +45,12 @@ impl Interpreter {
         if args.len() != 3 {
             return Err(Error::ArgMismatch);
         }
-        if let AstNodes::ReadVar(id) = &args[0] {
+        if let AstNodes::ReadVar(id) = args[0] {
             let number = self.visit(&args[1])?;
             let index = usize::try_from(number.as_int()?).unwrap();
             let value = self.visit(&args[2])?;
 
-            let mut symbol_table = self.current_symbol_table.borrow_mut();
-            symbol_table.symbol_list_insert(id, index, value)?;
+            self.symbol_tables.symbol_list_insert(id, index, value)?;
 
             Ok(())
         } else {
@@ -65,11 +62,8 @@ impl Interpreter {
         if args.len() != 1 {
             return Err(Error::ArgMismatch);
         }
-        if let AstNodes::ReadVar(id) = &args[0] {
-            let length = self
-                .current_symbol_table
-                .borrow_mut()
-                .symbol_crvalue_len(id)?;
+        if let AstNodes::ReadVar(id) = args[0] {
+            let length = self.symbol_tables.symbol_crvalue_len(id)?;
             let value = CrValue::Number(IBig::from(length));
             Ok(value)
         } else {
@@ -81,14 +75,11 @@ impl Interpreter {
         if args.len() != 2 {
             return Err(Error::ArgMismatch);
         }
-        if let AstNodes::ReadVar(id) = &args[0] {
+        if let AstNodes::ReadVar(id) = args[0] {
             let number = self.visit(&args[1])?;
             let index = usize::try_from(number.as_int()?).unwrap();
 
-            let list = self
-                .current_symbol_table
-                .borrow_mut()
-                .symbol_list_remove(id, index)?;
+            let list = self.symbol_tables.symbol_list_remove(id, index)?;
 
             Ok(list)
         } else {
