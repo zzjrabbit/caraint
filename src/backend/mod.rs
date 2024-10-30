@@ -4,7 +4,7 @@ use core::{cell::RefCell, iter::zip};
 use dashu_int::IBig;
 use value::CrValue;
 
-use crate::ast::AstNodes;
+use crate::ast::{AstNodes, Op};
 use result::{Error, Result};
 use scope::{Symbol, SymbolTable};
 
@@ -18,6 +18,7 @@ pub use builtins::set_printer;
 /// The interpreter
 pub struct Interpreter {
     current_symbol_table: Rc<RefCell<SymbolTable>>,
+    strings: Vec<String>,
 }
 
 impl Interpreter {
@@ -28,17 +29,11 @@ impl Interpreter {
     /// let interpreter = Interpreter::new();
     /// ```
     #[must_use]
-    pub fn new() -> Self {
+    pub fn new(strings: Vec<String>) -> Self {
         Self {
             current_symbol_table: Rc::new(RefCell::new(SymbolTable::new(None))),
+            strings: strings,
         }
-    }
-}
-
-/// Default implementation for Interpreter
-impl Default for Interpreter {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -108,7 +103,7 @@ impl Interpreter {
     }
 
     #[inline]
-    fn visit_index(&mut self, id: &str, index: &Rc<AstNodes>) -> Result<CrValue> {
+    fn visit_index(&mut self, id: &usize, index: &Rc<AstNodes>) -> Result<CrValue> {
         let number = self.visit(index)?;
         let index = usize::try_from(number.as_int()?).unwrap();
         let value = self
@@ -141,7 +136,7 @@ impl Interpreter {
 
     fn visit_for(
         &mut self,
-        variable: &str,
+        variable: &usize,
         start: &Rc<AstNodes>,
         end: &Rc<AstNodes>,
         step: &Rc<AstNodes>,
@@ -202,7 +197,7 @@ impl Interpreter {
 
     fn visit_assign(
         &mut self,
-        id: &str,
+        id: &usize,
         index: &Option<Rc<AstNodes>>,
         value: &Rc<AstNodes>,
     ) -> Result<CrValue> {
@@ -224,7 +219,7 @@ impl Interpreter {
     fn visit_binary_op(
         &mut self,
         left: &Rc<AstNodes>,
-        op: &str,
+        op: &Op,
         right: &Rc<AstNodes>,
     ) -> Result<CrValue> {
         let left = self.visit(left)?;
@@ -233,21 +228,21 @@ impl Interpreter {
         let right = right.as_int()?;
 
         Ok(CrValue::Number(match op {
-            "+" => left + right,
-            "-" => left - right,
-            "*" => left * right,
-            "/" => left / right,
-            "==" => IBig::from(u8::from(left == right)),
-            "!=" => IBig::from(u8::from(left != right)),
-            "<=" => IBig::from(u8::from(left <= right)),
-            ">=" => IBig::from(u8::from(left >= right)),
-            "<" => IBig::from(u8::from(left < right)),
-            ">" => IBig::from(u8::from(left > right)),
-            "||" => IBig::from(u8::from(*left > IBig::ZERO || *right > IBig::ZERO)),
-            "&&" => IBig::from(u8::from(*left > IBig::ZERO && *right > IBig::ZERO)),
-            "%" => left % right,
-            "<<" => left << usize::try_from(right).unwrap(),
-            ">>" => left >> usize::try_from(right).unwrap(),
+            Op::Add => left + right,
+            Op::Sub => left - right,
+            Op::Mul => left * right,
+            Op::Div => left / right,
+            Op::Eq => IBig::from(u8::from(left == right)),
+            Op::Ne => IBig::from(u8::from(left != right)),
+            Op::Le => IBig::from(u8::from(left <= right)),
+            Op::Ge => IBig::from(u8::from(left >= right)),
+            Op::Lt => IBig::from(u8::from(left < right)),
+            Op::Gt => IBig::from(u8::from(left > right)),
+            Op::Or => IBig::from(u8::from(*left > IBig::ZERO || *right > IBig::ZERO)),
+            Op::And => IBig::from(u8::from(*left > IBig::ZERO && *right > IBig::ZERO)),
+            Op::Mod => left % right,
+            Op::LShift => left << usize::try_from(right).unwrap(),
+            Op::RShift => left >> usize::try_from(right).unwrap(),
             _ => return Err(Error::UnknownOperator),
         }))
     }
@@ -262,17 +257,17 @@ impl Interpreter {
     }
 
     #[inline]
-    fn visit_unary_op(&mut self, op: &str, val: &Rc<AstNodes>) -> Result<CrValue> {
+    fn visit_unary_op(&mut self, op: &Op, val: &Rc<AstNodes>) -> Result<CrValue> {
         let value = self.visit(val)?;
         let result = match op {
-            "-" => -value.as_int()?,
+            Op::Sub => -value.as_int()?,
             _ => value.as_int()?.clone(),
         };
         Ok(CrValue::Number(result))
     }
 
     #[inline]
-    fn visit_const_def(&mut self, id: &str, const_value: &Rc<AstNodes>) -> Result<CrValue> {
+    fn visit_const_def(&mut self, id: &usize, const_value: &Rc<AstNodes>) -> Result<CrValue> {
         let const_value = self.visit(const_value)?;
         self.current_symbol_table
             .borrow_mut()
@@ -281,7 +276,7 @@ impl Interpreter {
     }
 
     #[inline]
-    fn visit_var_def(&mut self, id: &str, init_value: &Rc<AstNodes>) -> Result<CrValue> {
+    fn visit_var_def(&mut self, id: &usize, init_value: &Rc<AstNodes>) -> Result<CrValue> {
         let init_value = self.visit(init_value)?;
         self.current_symbol_table
             .borrow_mut()
@@ -290,7 +285,7 @@ impl Interpreter {
     }
 
     #[inline]
-    fn visit_read_var(&self, id: &str) -> Result<CrValue> {
+    fn visit_read_var(&self, id: &usize) -> Result<CrValue> {
         let value = self.current_symbol_table.borrow().symbol_clone_value(id)?;
         Ok(value)
     }
@@ -298,8 +293,8 @@ impl Interpreter {
     #[inline]
     fn visit_function_def(
         &self,
-        id: &str,
-        params: &[String],
+        id: &usize,
+        params: &[usize],
         body: &[AstNodes],
     ) -> Result<CrValue> {
         self.current_symbol_table
@@ -308,8 +303,8 @@ impl Interpreter {
         Ok(CrValue::Void)
     }
 
-    fn visit_call(&mut self, id: &String, args: &[AstNodes]) -> Result<CrValue> {
-        match id.as_str() {
+    fn visit_call(&mut self, id: &usize, args: &[AstNodes]) -> Result<CrValue> {
+        match self.strings[*id].as_str() {
             "print" => {
                 self.print(args);
                 return Ok(CrValue::Void);
@@ -334,7 +329,7 @@ impl Interpreter {
         let function = self
             .current_symbol_table
             .borrow()
-            .symbol_clone(id.as_str())
+            .symbol_clone(id)
             .unwrap_or_else(|_| panic!("Unable to find function {id}!"));
 
         match function {

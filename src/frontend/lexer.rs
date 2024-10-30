@@ -1,5 +1,9 @@
 use alloc::string::String;
+use alloc::collections::BTreeMap;
+use alloc::vec::Vec;
 use dashu_int::IBig;
+
+use crate::ast::Op;
 
 /// This enum defines all the token types with their values
 
@@ -43,13 +47,13 @@ pub enum Token {
     /// Numbers, such as 0,1,2,1234,114514 and so on.
     Number(IBig),
     /// Operators, +,-,*,/,......
-    Operator(String),
+    Operator(Op),
     /// `Left paren`, (
     LParen,
     /// `Right paren`, )
     RParen,
     /// `Identifiers`
-    Id(String),
+    Id(usize),
     /// `Keywords`
     Keyword(KeywordTypes),
     /// `Assign`, =
@@ -71,17 +75,17 @@ pub enum Token {
 impl Token {
     /// This function returns the operator if the token is, otherwise it returns None.
     #[must_use]
-    pub fn as_operator(&self) -> Option<String> {
+    pub fn as_operator(&self) -> Option<Op> {
         match self {
-            Self::Operator(ch) => Some(ch.clone()),
+            Self::Operator(op) => Some(*op),
             _ => None,
         }
     }
 
     #[must_use]
-    pub fn as_ident(&self) -> Option<String> {
+    pub fn as_ident(&self) -> Option<usize> {
         match self {
-            Self::Id(id) => Some(id.clone()),
+            Self::Id(id) => Some(*id),
             _ => None,
         }
     }
@@ -91,6 +95,9 @@ impl Token {
 pub struct Lexer {
     input: String,
     position: usize,
+    strings: BTreeMap<String, usize>,
+    pub stringtable: Vec<String>,
+    next_id: usize,
 }
 
 impl Lexer {
@@ -102,7 +109,7 @@ impl Lexer {
     /// ```
     #[must_use]
     pub const fn new(input: String) -> Self {
-        Self { input, position: 0 }
+        Self { input, position: 0, strings: BTreeMap::new(), stringtable: Vec::new(), next_id: 0 }
     }
 
     fn advance(&mut self) -> Option<char> {
@@ -146,56 +153,65 @@ impl Lexer {
                     let number = IBig::from_str_radix(&num, 10).unwrap();
                     return Some(Token::Number(number));
                 }
-                '+' | '-' | '*' | '/' => {
-                    return Some(Token::Operator(<char as Into<String>>::into(ch)))
+                '+' => {
+                    return Some(Token::Operator(Op::Add))
+                }
+                '-' => {
+                    return Some(Token::Operator(Op::Sub))
+                }
+                '*' => {
+                    return Some(Token::Operator(Op::Mul))
+                }
+                '/' => {
+                    return Some(Token::Operator(Op::Div))
                 }
                 '(' => return Some(Token::LParen),
                 ')' => return Some(Token::RParen),
                 '=' => {
                     if self.current_char() == '=' {
                         self.advance();
-                        return Some(Token::Operator("==".into()));
+                        return Some(Token::Operator(Op::Eq));
                     }
                     return Some(Token::Assign);
                 }
                 '!' => {
                     if self.current_char() == '=' {
                         self.advance();
-                        return Some(Token::Operator("!=".into()));
+                        return Some(Token::Operator(Op::Ne));
                     }
                     panic!("Unexpected charactor {}!", ch)
                 }
                 '>' => {
                     if self.current_char() == '=' {
                         self.advance();
-                        return Some(Token::Operator(">=".into()));
+                        return Some(Token::Operator(Op::Ge));
                     } else if self.current_char() == '>' {
                         self.advance();
-                        return Some(Token::Operator(">>".into()));
+                        return Some(Token::Operator(Op::RShift));
                     }
-                    return Some(Token::Operator(">".into()));
+                    return Some(Token::Operator(Op::Gt));
                 }
                 '<' => {
                     if self.current_char() == '=' {
                         self.advance();
-                        return Some(Token::Operator("<=".into()));
+                        return Some(Token::Operator(Op::Le));
                     } else if self.current_char() == '<' {
                         self.advance();
-                        return Some(Token::Operator("<<".into()));
+                        return Some(Token::Operator(Op::LShift));
                     }
-                    return Some(Token::Operator("<".into()));
+                    return Some(Token::Operator(Op::Lt));
                 }
                 '|' => {
                     if self.current_char() == '|' {
                         self.advance();
-                        return Some(Token::Operator("||".into()));
+                        return Some(Token::Operator(Op::Or));
                     }
                     panic!("Unexpected charactor {}!", ch)
                 }
                 '&' => {
                     if self.current_char() == '&' {
                         self.advance();
-                        return Some(Token::Operator("&&".into()));
+                        return Some(Token::Operator(Op::And));
                     }
                     panic!("Unexpected charactor {}!", ch)
                 }
@@ -220,7 +236,17 @@ impl Lexer {
                         if let Some(keyword_type) = KeywordTypes::from_string(&id) {
                             return Some(Token::Keyword(keyword_type));
                         }
-                        return Some(Token::Id(id));
+
+                        if let Some(n) = self.strings.get(&id) {
+                            return Some(Token::Id(*n));
+                        } else {
+                            let n = self.next_id;
+                            self.stringtable.push(id.clone());
+                            self.strings.insert(id, n);
+                            self.next_id += 1;
+                            return Some(Token::Id(n));
+                        }
+
                     }
                     panic!("Unexpected charactor {}!", ch)
                 }

@@ -1,12 +1,12 @@
-use alloc::{string::String, vec::Vec};
+use alloc::{vec::Vec};
 use dashu_int::IBig;
 
 use super::{KeywordTypes, Lexer, Token};
-use crate::ast::AstNodes;
+use crate::ast::{AstNodes, Op};
 
 /// This is a simple and stupid LL(1) parser.
 pub struct Parser {
-    lexer: Lexer,
+    pub lexer: Lexer,
     current_token: Option<Token>,
 }
 
@@ -194,7 +194,7 @@ impl Parser {
     fn parse_for(&mut self) -> AstNodes {
         self.advance();
 
-        let variable = self.eat(Token::Id(String::new())).as_ident().unwrap();
+        let variable = self.eat(Token::Id(0)).as_ident().unwrap();
 
         self.eat(Token::Keyword(KeywordTypes::In));
 
@@ -262,7 +262,7 @@ impl Parser {
 
     fn parse_function(&mut self) -> AstNodes {
         self.advance();
-        let id = self.eat(Token::Id(String::new())).as_ident().unwrap();
+        let id = self.eat(Token::Id(0)).as_ident().unwrap();
 
         self.eat(Token::LParen);
         let params = self.parse_params();
@@ -284,7 +284,7 @@ impl Parser {
         AstNodes::FunctionDef(id, params, body)
     }
 
-    fn parse_params(&mut self) -> Vec<String> {
+    fn parse_params(&mut self) -> Vec<usize> {
         let mut params = Vec::new();
         while let Some(current_token) = self.current_token.clone() {
             match current_token {
@@ -312,7 +312,7 @@ impl Parser {
     fn parse_const(&mut self) -> AstNodes {
         self.advance();
 
-        let id = self.eat(Token::Id(String::new())).as_ident().unwrap();
+        let id = self.eat(Token::Id(0)).as_ident().unwrap();
 
         self.eat(Token::Assign);
 
@@ -326,7 +326,7 @@ impl Parser {
     fn parse_var(&mut self) -> AstNodes {
         self.advance();
 
-        let id = self.eat(Token::Id(String::new())).as_ident().unwrap();
+        let id = self.eat(Token::Id(0)).as_ident().unwrap();
 
         self.eat(Token::Assign);
 
@@ -342,7 +342,7 @@ impl Parser {
     }
 
     fn parse_assign(&mut self) -> AstNodes {
-        let id = self.eat(Token::Id(String::new())).as_ident().unwrap();
+        let id = self.eat(Token::Id(0)).as_ident().unwrap();
 
         let index = if self.current_token == Some(Token::LBracket) {
             self.advance();
@@ -366,8 +366,8 @@ impl Parser {
         let mut node = self.parse_eq_expr();
         while let Some(current_token) = self.current_token.clone() {
             if let Some(op) = current_token.as_operator() {
-                match op.as_str() {
-                    "||" | "&&" => {
+                match op {
+                    Op::Or | Op::And => {
                         self.advance();
                         node = AstNodes::BinaryOp(node.into(), op, self.parse_eq_expr().into());
                     }
@@ -384,8 +384,8 @@ impl Parser {
         let mut node = self.parse_add_expr();
         while let Some(current_token) = self.current_token.clone() {
             if let Some(op) = current_token.as_operator() {
-                match op.as_str() {
-                    "==" | "!=" | ">=" | "<=" | "<" | ">" => {
+                match op {
+                    Op::Eq | Op::Ne | Op::Ge | Op::Le | Op::Lt | Op::Gt => {
                         self.advance();
                         node = AstNodes::BinaryOp(node.into(), op, self.parse_add_expr().into());
                     }
@@ -402,8 +402,8 @@ impl Parser {
         let mut node = self.parse_move_expr();
         while let Some(current_token) = self.current_token.clone() {
             if let Some(op) = current_token.as_operator() {
-                match op.as_str() {
-                    "+" | "-" => {
+                match op {
+                    Op::Add | Op::Sub => {
                         self.advance();
                         node = AstNodes::BinaryOp(node.into(), op, self.parse_move_expr().into());
                     }
@@ -420,8 +420,8 @@ impl Parser {
         let mut node = self.parse_term();
         while let Some(current_token) = self.current_token.clone() {
             if let Some(op) = current_token.as_operator() {
-                match op.as_str() {
-                    "<<" | ">>" => {
+                match op {
+                    Op::LShift | Op::RShift => {
                         self.advance();
                         node = AstNodes::BinaryOp(node.into(), op, self.parse_term().into());
                     }
@@ -438,8 +438,8 @@ impl Parser {
         let mut node = self.parse_factor();
         while let Some(current_token) = self.current_token.clone() {
             if let Some(op) = current_token.as_operator() {
-                match op.as_str() {
-                    "*" | "/" | "%" => {
+                match op {
+                    Op::Mul | Op::Div | Op::Mod => {
                         self.advance();
                         node = AstNodes::BinaryOp(node.into(), op, self.parse_factor().into());
                     }
@@ -465,13 +465,13 @@ impl Parser {
                 self.eat(Token::RParen);
                 node
             }
-            Token::Operator(op) => match op.as_str() {
-                "+" | "-" => {
+            Token::Operator(op) => match op {
+                Op::Add | Op::Sub => {
                     self.advance();
                     let node = self.parse_expr();
                     AstNodes::UnaryOp(op, node.into())
                 }
-                _ => panic!("Unexpected unary operator {}!", op),
+                _ => panic!("Unexpected unary operator {:?}!", op),
             },
             Token::Id(id) => {
                 if self.lexer.current_char() == '(' {
@@ -492,7 +492,7 @@ impl Parser {
     }
 
     fn parse_call(&mut self, stmt: bool) -> AstNodes {
-        let id = self.eat(Token::Id(String::new())).as_ident().unwrap();
+        let id = self.eat(Token::Id(0)).as_ident().unwrap();
 
         self.eat(Token::LParen);
 

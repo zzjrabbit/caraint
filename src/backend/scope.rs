@@ -1,4 +1,4 @@
-use alloc::{collections::BTreeMap, rc::Rc, string::String, vec::Vec};
+use alloc::{collections::BTreeMap, rc::Rc, vec::Vec};
 use core::cell::RefCell;
 
 use super::{
@@ -9,13 +9,13 @@ use crate::ast::AstNodes;
 
 #[derive(Debug, Clone)]
 pub enum Symbol {
-    Const(String, CrValue),
-    Var(String, CrValue),
-    Function(String, Vec<String>, Vec<AstNodes>),
+    Const(usize, CrValue),
+    Var(usize, CrValue),
+    Function(usize, Vec<usize>, Vec<AstNodes>),
 }
 
 impl Symbol {
-    pub fn get_id(&self) -> &str {
+    pub fn get_id(&self) -> &usize {
         match self {
             Self::Const(id, _) | Self::Var(id, _) | Self::Function(id, _, _) => id,
         }
@@ -46,7 +46,7 @@ impl Symbol {
 
 #[derive(Debug, Clone)]
 pub struct SymbolTable {
-    symbols: BTreeMap<String, Symbol>,
+    symbols: BTreeMap<usize, Symbol>,
     father: Option<Rc<RefCell<Self>>>,
 }
 
@@ -59,7 +59,7 @@ impl SymbolTable {
     }
 
     pub fn insert(&mut self, symbol: Symbol) {
-        self.symbols.insert(String::from(symbol.get_id()), symbol);
+        self.symbols.insert(*symbol.get_id(), symbol);
     }
 
     pub fn clear(&mut self) {
@@ -69,7 +69,7 @@ impl SymbolTable {
 
 impl SymbolTable {
     #[inline]
-    pub fn symbol_clone(&self, id: &str) -> Result<Symbol> {
+    pub fn symbol_clone(&self, id: &usize) -> Result<Symbol> {
         if let Some(symbol) = self.symbols.get(id) {
             Ok(symbol.clone())
         } else if let Some(father) = &self.father {
@@ -80,7 +80,7 @@ impl SymbolTable {
     }
 
     #[inline]
-    pub fn symbol_clone_value(&self, id: &str) -> Result<CrValue> {
+    pub fn symbol_clone_value(&self, id: &usize) -> Result<CrValue> {
         if let Some(symbol) = self.symbols.get(id) {
             Ok(symbol.get_value()?.clone())
         } else if let Some(father) = &self.father {
@@ -91,7 +91,7 @@ impl SymbolTable {
     }
 
     #[inline]
-    pub fn symbol_crvalue_len(&self, id: &str) -> Result<usize> {
+    pub fn symbol_crvalue_len(&self, id: &usize) -> Result<usize> {
         if let Some(symbol) = self.symbols.get(id) {
             let list = symbol.get_value()?.as_list()?;
             Ok(list.len())
@@ -103,7 +103,7 @@ impl SymbolTable {
     }
 
     #[inline]
-    pub fn symbol_crvalue_list_item(&self, id: &str, index: usize) -> Result<CrValue> {
+    pub fn symbol_crvalue_list_item(&self, id: &usize, index: usize) -> Result<CrValue> {
         if let Some(symbol) = self.symbols.get(id) {
             let list = symbol.get_value()?.as_list()?;
             Ok(list[index].clone())
@@ -115,7 +115,7 @@ impl SymbolTable {
     }
 
     #[inline]
-    pub fn symbol_assign(&mut self, id: &str, value: CrValue) -> Result<()> {
+    pub fn symbol_assign(&mut self, id: &usize, value: CrValue) -> Result<()> {
         if let Some(symbol) = self.symbols.get_mut(id) {
             symbol.assign(value)?;
         } else if let Some(father) = &self.father {
@@ -125,7 +125,7 @@ impl SymbolTable {
     }
 
     #[inline]
-    pub fn symbol_list_append(&mut self, id: &str, value: CrValue) -> Result<()> {
+    pub fn symbol_list_append(&mut self, id: &usize, value: CrValue) -> Result<()> {
         if let Some(symbol) = self.symbols.get_mut(id) {
             let list = symbol.get_value_mut()?.as_list_mut()?;
             list.push(value);
@@ -136,7 +136,7 @@ impl SymbolTable {
     }
 
     #[inline]
-    pub fn symbol_list_insert(&mut self, id: &str, index: usize, value: CrValue) -> Result<()> {
+    pub fn symbol_list_insert(&mut self, id: &usize, index: usize, value: CrValue) -> Result<()> {
         if let Some(symbol) = self.symbols.get_mut(id) {
             let list = symbol.get_value_mut()?.as_list_mut()?;
             list.insert(index, value);
@@ -147,7 +147,7 @@ impl SymbolTable {
     }
 
     #[inline]
-    pub fn symbol_list_modify(&mut self, id: &str, index: usize, value: CrValue) -> Result<()> {
+    pub fn symbol_list_modify(&mut self, id: &usize, index: usize, value: CrValue) -> Result<()> {
         if let Some(symbol) = self.symbols.get_mut(id) {
             let list = symbol.get_value_mut()?.as_list_mut()?;
             list[index] = value;
@@ -158,7 +158,7 @@ impl SymbolTable {
     }
 
     #[inline]
-    pub fn symbol_list_remove(&mut self, id: &str, index: usize) -> Result<CrValue> {
+    pub fn symbol_list_remove(&mut self, id: &usize, index: usize) -> Result<CrValue> {
         if let Some(symbol) = self.symbols.get_mut(id) {
             let list = symbol.get_value_mut()?.as_list_mut()?;
             Ok(list.remove(index))
