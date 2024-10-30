@@ -1,5 +1,5 @@
-use alloc::string::String;
 use alloc::collections::BTreeMap;
+use alloc::string::String;
 use alloc::vec::Vec;
 use dashu_int::IBig;
 
@@ -96,7 +96,7 @@ pub struct Lexer {
     input: String,
     position: usize,
     strings: BTreeMap<String, usize>,
-    pub stringtable: Vec<String>,
+    string_table: Vec<String>,
     next_id: usize,
 }
 
@@ -109,7 +109,13 @@ impl Lexer {
     /// ```
     #[must_use]
     pub const fn new(input: String) -> Self {
-        Self { input, position: 0, strings: BTreeMap::new(), stringtable: Vec::new(), next_id: 0 }
+        Self {
+            input,
+            position: 0,
+            strings: BTreeMap::new(),
+            string_table: Vec::new(),
+            next_id: 0,
+        }
     }
 
     fn advance(&mut self) -> Option<char> {
@@ -124,6 +130,10 @@ impl Lexer {
     #[must_use]
     pub fn current_char(&self) -> char {
         self.input.chars().nth(self.position).unwrap_or('\0')
+    }
+
+    pub fn string_table(&self) -> Vec<String> {
+        self.string_table.clone()
     }
 
     /// Let the lexer parse a token and return it. \
@@ -153,18 +163,10 @@ impl Lexer {
                     let number = IBig::from_str_radix(&num, 10).unwrap();
                     return Some(Token::Number(number));
                 }
-                '+' => {
-                    return Some(Token::Operator(Op::Add))
-                }
-                '-' => {
-                    return Some(Token::Operator(Op::Sub))
-                }
-                '*' => {
-                    return Some(Token::Operator(Op::Mul))
-                }
-                '/' => {
-                    return Some(Token::Operator(Op::Div))
-                }
+                '+' => return Some(Token::Operator(Op::Add)),
+                '-' => return Some(Token::Operator(Op::Sub)),
+                '*' => return Some(Token::Operator(Op::Mul)),
+                '/' => return Some(Token::Operator(Op::Div)),
                 '(' => return Some(Token::LParen),
                 ')' => return Some(Token::RParen),
                 '=' => {
@@ -241,12 +243,11 @@ impl Lexer {
                             return Some(Token::Id(*n));
                         } else {
                             let n = self.next_id;
-                            self.stringtable.push(id.clone());
+                            self.string_table.push(id.clone());
                             self.strings.insert(id, n);
                             self.next_id += 1;
                             return Some(Token::Id(n));
                         }
-
                     }
                     panic!("Unexpected charactor {}!", ch)
                 }

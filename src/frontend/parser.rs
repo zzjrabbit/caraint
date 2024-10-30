@@ -1,4 +1,4 @@
-use alloc::{vec::Vec};
+use alloc::{string::String, vec::Vec};
 use dashu_int::IBig;
 
 use super::{KeywordTypes, Lexer, Token};
@@ -60,7 +60,7 @@ impl Parser {
     /// let ast = parser.parse_compile_unit();
     /// println!("{:#?}",ast);
     /// ```
-    /// 
+    ///
     /// ### Output:
     /// ```
     /// CompileUnit(
@@ -105,12 +105,12 @@ impl Parser {
     ///     ),
     /// )*/
     /// ```
-    pub fn parse_compile_unit(&mut self) -> AstNodes {
+    pub fn parse_compile_unit(&mut self) -> (AstNodes, Vec<String>) {
         let mut children = Vec::new();
         while self.current_token.is_some() {
             children.push(self.parse_statement());
         }
-        AstNodes::CompileUnit(children)
+        (AstNodes::CompileUnit(children), self.lexer.string_table())
     }
 
     fn parse_statement(&mut self) -> AstNodes {

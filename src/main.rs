@@ -17,14 +17,12 @@ fn main() {
     let lexer = Lexer::new(code);
     let mut parser = Parser::new(lexer);
 
-    let ast = parser.parse_compile_unit();
+    let (ast, strings) = parser.parse_compile_unit();
 
     #[cfg(debug_assertions)]
     println!("{:#?}", ast);
 
     cara::backend::set_printer(|args| print!("{}", args));
-
-    let Parser { lexer: Lexer { stringtable: strings, .. }, .. } = parser;
 
     let mut interpreter = Interpreter::new(strings);
 

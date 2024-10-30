@@ -18,7 +18,7 @@ pub use builtins::set_printer;
 /// The interpreter
 pub struct Interpreter {
     current_symbol_table: Rc<RefCell<SymbolTable>>,
-    strings: Vec<String>,
+    string_table: Vec<String>,
 }
 
 impl Interpreter {
@@ -29,10 +29,10 @@ impl Interpreter {
     /// let interpreter = Interpreter::new();
     /// ```
     #[must_use]
-    pub fn new(strings: Vec<String>) -> Self {
+    pub fn new(string_table: Vec<String>) -> Self {
         Self {
             current_symbol_table: Rc::new(RefCell::new(SymbolTable::new(None))),
-            strings: strings,
+            string_table,
         }
     }
 }
@@ -243,7 +243,6 @@ impl Interpreter {
             Op::Mod => left % right,
             Op::LShift => left << usize::try_from(right).unwrap(),
             Op::RShift => left >> usize::try_from(right).unwrap(),
-            _ => return Err(Error::UnknownOperator),
         }))
     }
 
@@ -299,12 +298,16 @@ impl Interpreter {
     ) -> Result<CrValue> {
         self.current_symbol_table
             .borrow_mut()
-            .insert(Symbol::Function(id.to_owned(), params.to_owned(), body.to_vec()));
+            .insert(Symbol::Function(
+                id.to_owned(),
+                params.to_owned(),
+                body.to_vec(),
+            ));
         Ok(CrValue::Void)
     }
 
     fn visit_call(&mut self, id: &usize, args: &[AstNodes]) -> Result<CrValue> {
-        match self.strings[*id].as_str() {
+        match self.string_table[*id].as_str() {
             "print" => {
                 self.print(args);
                 return Ok(CrValue::Void);
