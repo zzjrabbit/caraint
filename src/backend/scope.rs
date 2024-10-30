@@ -111,7 +111,7 @@ impl SymbolTables {
             .iter()
             .filter_map(|symt| symt.symbols.get(&id))
             .next_back();
-        f(sym.ok_or(Error::SymbolNotFound))
+        f(sym.ok_or(Error::SymbolNotFound(id)))
     }
 
     #[inline]
@@ -123,7 +123,7 @@ impl SymbolTables {
             .iter_mut()
             .filter_map(|symt| symt.symbols.get_mut(&id))
             .next_back();
-        f(sym.ok_or(Error::SymbolNotFound))
+        f(sym.ok_or(Error::SymbolNotFound(id)))
     }
 
     #[inline]
