@@ -24,7 +24,9 @@ fn main() {
 
     cara::backend::set_printer(|args| print!("{}", args));
 
-    let mut interpreter = Interpreter::new();
+    let Parser { lexer: Lexer { stringtable: strings, .. }, .. } = parser;
+
+    let mut interpreter = Interpreter::new(strings);
 
     #[cfg(debug_assertions)]
     let result = interpreter.visit(&ast).unwrap();
