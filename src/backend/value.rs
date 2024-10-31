@@ -1,4 +1,4 @@
-use alloc::{string::String, vec::Vec};
+use alloc::{rc::Rc, string::String, vec::Vec};
 use core::fmt::{self, Display};
 use dashu_int::IBig;
 
@@ -8,7 +8,7 @@ use crate::ast::AstNodes;
 #[derive(Debug, Clone)]
 pub enum CrValue {
     Number(IBig),
-    Function(Vec<String>, Vec<AstNodes>),
+    Function(Rc<Vec<String>>, Rc<Vec<AstNodes>>),
     List(Vec<CrValue>),
     Void,
 }
@@ -30,14 +30,14 @@ impl Display for CrValue {
 }
 
 impl CrValue {
-    pub const fn as_int(&self) -> Result<&IBig> {
+    pub fn as_int(&self) -> Result<&IBig> {
         match self {
             Self::Number(num) => Ok(num),
             _ => Err(Error::UseVoidValue),
         }
     }
 
-    pub const fn as_list(&self) -> Result<&Vec<Self>> {
+    pub fn as_list(&self) -> Result<&Vec<Self>> {
         match self {
             Self::List(list) => Ok(list),
             _ => Err(Error::UseVoidValue),

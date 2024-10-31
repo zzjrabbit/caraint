@@ -16,7 +16,6 @@ mod value;
 pub use builtins::set_printer;
 
 /// The interpreter
-#[derive(Debug)]
 pub struct Interpreter {
     symbol_tables: SymbolTables,
     string_table: Vec<String>,
@@ -291,11 +290,12 @@ impl Interpreter {
         params: &[usize],
         body: &[AstNodes],
     ) -> Result<CrValue> {
-        self.symbol_tables.insert_sym(Symbol::Function(
+        let symbol = Symbol::Function(
             id.to_owned(),
-            params.to_owned(),
-            body.to_vec(),
-        ));
+            params.to_owned().into(),
+            body.to_vec().into(),
+        );
+        self.symbol_tables.insert_sym(symbol);
         Ok(CrValue::Void)
     }
 
@@ -329,11 +329,11 @@ impl Interpreter {
 
         match function {
             Symbol::Function(_, params, body) => self.with_block(|this| {
-                for (name, value) in zip(params, args) {
-                    let value = Symbol::Const(name, this.visit(value)?);
+                for (name, value) in zip(params.as_ref(), args) {
+                    let value = Symbol::Const(*name, this.visit(value)?);
                     this.symbol_tables.insert_sym(value);
                 }
-                for item in &body {
+                for item in body.as_ref() {
                     if let Err(error) = this.visit(item) {
                         if let Error::Return(value) = error {
                             return Ok(value);

@@ -1,4 +1,4 @@
-use alloc::{collections::BTreeMap, vec::Vec};
+use alloc::{collections::BTreeMap, rc::Rc, vec::Vec};
 use core::ops::{Deref, DerefMut};
 
 use super::{
@@ -11,7 +11,7 @@ use crate::ast::AstNodes;
 pub enum Symbol {
     Const(usize, CrValue),
     Var(usize, CrValue),
-    Function(usize, Vec<usize>, Vec<AstNodes>),
+    Function(usize, Rc<Vec<usize>>, Rc<Vec<AstNodes>>),
 }
 
 impl Symbol {
@@ -44,13 +44,12 @@ impl Symbol {
     }
 }
 
-#[derive(Debug, Clone)]
 pub struct SymbolTable {
     symbols: BTreeMap<usize, Symbol>,
 }
 
 impl SymbolTable {
-    pub const fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             symbols: BTreeMap::new(),
         }
@@ -61,7 +60,6 @@ impl SymbolTable {
     }
 }
 
-#[derive(Debug, Clone)]
 pub struct SymbolTables(pub Vec<SymbolTable>);
 
 impl From<Vec<SymbolTable>> for SymbolTables {
