@@ -35,6 +35,10 @@ impl Interpreter {
             string_table,
         }
     }
+
+    pub fn string_table(&self) -> &[String] {
+        &self.string_table
+    }
 }
 
 impl Interpreter {
@@ -343,7 +347,7 @@ impl Interpreter {
                 }
                 Ok(CrValue::Void)
             }),
-            _ => Err(Error::SymbolNotFound),
+            _ => Err(Error::SymbolNotFound(id)),
         }
     }
 

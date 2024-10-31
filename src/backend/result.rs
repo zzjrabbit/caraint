@@ -5,7 +5,7 @@ use super::value::CrValue;
 /// Error returned by IR generator.
 pub enum Error {
     DuplicatedDef,
-    SymbolNotFound,
+    SymbolNotFound(usize),
     FailedToEval,
     InvalidArrayLen,
     InvalidInit,
@@ -26,7 +26,7 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::DuplicatedDef => write!(f, "duplicated symbol definition"),
-            Self::SymbolNotFound => write!(f, "symbol not found"),
+            Self::SymbolNotFound(id) => write!(f, "symbol not found, id: {id}"),
             Self::FailedToEval => write!(f, "failed to evaluate constant"),
             Self::InvalidArrayLen => write!(f, "invalid array length"),
             Self::InvalidInit => write!(f, "invalid initializer"),

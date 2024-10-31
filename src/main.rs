@@ -26,11 +26,19 @@ fn main() {
 
     let mut interpreter = Interpreter::new(strings);
 
-    #[cfg(debug_assertions)]
-    let result = interpreter.visit(&ast).unwrap();
-    #[cfg(not(debug_assertions))]
-    interpreter.visit(&ast).unwrap();
-
-    #[cfg(debug_assertions)]
-    println!("{:?}", result);
+    match interpreter.visit(&ast) {
+        #[cfg(debug_assertions)]
+        Ok(value) => println!("{:?}", value),
+        #[cfg(not(debug_assertions))]
+        Ok(_) => (),
+        Err(e) => {
+            eprintln!("on runtime error: {e}");
+            eprintln!("variables:");
+            for (i, name) in interpreter.string_table().iter().enumerate() {
+                eprintln!(" {i}:\t{name}");
+            }
+            eprintln!("{e}");
+            panic!();
+        },
+    }
 }
