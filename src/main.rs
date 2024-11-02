@@ -39,6 +39,6 @@ fn main() {
             }
             eprintln!("{e}");
             panic!();
-        },
+        }
     }
 }
