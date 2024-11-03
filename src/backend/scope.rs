@@ -182,10 +182,6 @@ impl SymbolTables {
 
     #[inline]
     pub fn symbol_list_remove(&mut self, id: usize, index: usize) -> Result<CrValue> {
-        self.get_var_mut(id, |sym| {
-            sym.and_then(Symbol::get_value_mut)
-                .and_then(CrValue::as_list_mut)
-                .map(|list| list.remove(index))
-        })
+        self.symbol_list_mut(id).map(|vec| vec.remove(index))
     }
 }
