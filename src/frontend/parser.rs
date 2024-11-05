@@ -439,7 +439,7 @@ impl Parser {
         while let Some(current_token) = self.current_token.clone() {
             if let Some(op) = current_token.as_operator() {
                 match op {
-                    Op::Mul | Op::Div | Op::Mod => {
+                    Op::Mul | Op::Div | Op::Rem => {
                         self.advance();
                         node = AstNodes::BinaryOp(node.into(), op, self.parse_factor().into());
                     }

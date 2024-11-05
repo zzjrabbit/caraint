@@ -240,7 +240,7 @@ impl Interpreter {
             Op::Gt => IBig::from(u8::from(left > right)),
             Op::Or => IBig::from(u8::from(*left > IBig::ZERO || *right > IBig::ZERO)),
             Op::And => IBig::from(u8::from(*left > IBig::ZERO && *right > IBig::ZERO)),
-            Op::Mod => left % right,
+            Op::Rem => left % right,
             Op::LShift => left << usize::try_from(right).unwrap(),
             Op::RShift => left >> usize::try_from(right).unwrap(),
         }))
@@ -306,7 +306,7 @@ impl Interpreter {
     fn visit_call(&mut self, id: usize, args: &[AstNodes]) -> Result<CrValue> {
         match self.string_table[id].as_str() {
             "print" => {
-                self.print(args);
+                self.print(args)?;
                 return Ok(CrValue::Void);
             }
             "append" => {

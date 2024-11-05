@@ -17,7 +17,7 @@ pub enum Op {
     Lt,
     Or,
     And,
-    Mod,
+    Rem,
 }
 
 /// This is the AST nodes definition.

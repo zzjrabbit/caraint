@@ -1,6 +1,7 @@
 use std::env::args;
 use std::fs::File;
 use std::io::Read;
+use std::process::exit;
 
 use cara::backend::Interpreter;
 use cara::frontend::{Lexer, Parser};
@@ -8,11 +9,20 @@ use cara::frontend::{Lexer, Parser};
 fn main() {
     let mut code = String::new();
 
-    let path = args().nth(1).expect("Unable to get cara source file path!");
-    File::open(path)
-        .expect("Unable to find cara source file!")
-        .read_to_string(&mut code)
-        .expect("Unable to read cara source file!");
+    let path = args().nth(1).unwrap_or_else(|| {
+        eprintln!("Unable to get cara source file path!");
+        exit(1);
+    });
+
+    let mut file = File::open(&path).unwrap_or_else(|_| {
+        eprintln!("Unable to find cara source file!");
+        exit(1);
+    });
+
+    if file.read_to_string(&mut code).is_err() {
+        eprintln!("Unable to read cara source file!");
+        exit(1);
+    }
 
     let lexer = Lexer::new(code);
     let mut parser = Parser::new(lexer);
@@ -38,7 +48,6 @@ fn main() {
                 eprintln!(" {i}:\t{name}");
             }
             eprintln!("{e}");
-            panic!();
         }
     }
 }
