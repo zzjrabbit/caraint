@@ -23,8 +23,7 @@ pub fn print_message(args: fmt::Arguments) {
 impl Interpreter {
     pub(super) fn print(&mut self, args: &[AstNodes]) -> Result<()> {
         for arg in args {
-            let value = self.visit(arg)?;
-            print_message(format_args!("{}", value));
+            print_message(format_args!("{}", self.visit(arg)?));
         }
         print_message(format_args!("\n"));
         Ok(())
