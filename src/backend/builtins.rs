@@ -22,10 +22,10 @@ pub fn print_message(args: fmt::Arguments) {
 
 impl Interpreter {
     pub(super) fn print(&mut self, args: &[AstNodes]) -> Result<()> {
-        args.iter().map(|x| self.visit(x)).try_for_each(|value| {
-            print_message(format_args!("{}", value?));
-            Ok(())
-        })?;
+        for arg in args {
+            let value = self.visit(arg)?;
+            print_message(format_args!("{}", value));
+        }
         print_message(format_args!("\n"));
         Ok(())
     }
