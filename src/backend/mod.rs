@@ -13,11 +13,10 @@ mod result;
 mod scope;
 mod value;
 
-pub use builtins::set_printer;
-
 /// The interpreter
 pub struct Interpreter {
     symbol_tables: SymbolTables,
+    printer: Option<fn(core::fmt::Arguments)>,
     string_table: Vec<String>,
 }
 
@@ -32,12 +31,21 @@ impl Interpreter {
     pub fn new(string_table: Vec<String>) -> Self {
         Self {
             symbol_tables: vec![SymbolTable::new()].into(),
+            printer: None,
             string_table,
         }
     }
 
-    pub fn string_table(&self) -> &[String] {
-        &self.string_table
+    /// Set the printer. \
+    /// The printer is called when the `print` function in cara is called. \
+    /// Example
+    /// ```rust
+    /// use cara::backend::Interpreter;
+    /// let mut interpreter = Interpreter::new();
+    /// interpreter.set_printer(|args| print!("{}", args));
+    /// ```
+    pub fn set_printer(&mut self, printer: fn(core::fmt::Arguments)) {
+        self.printer = Some(printer);
     }
 }
 
@@ -48,12 +56,12 @@ impl Interpreter {
     /// use cara::backend::Interpreter;
     /// use cara::frontend::{Parser,Lexer};
     ///
-    /// let mut lexer = Lexer::new("1+1".into());
+    /// let lexer = Lexer::new("1+1".into());
     /// let mut parser = Parser::new(lexer);
     /// let node = parser.parse_compile_unit();
     ///
     /// let mut interpreter = Interpreter::new();
-    /// assert_eq!(interpreter.visit(node),2);
+    /// assert_eq!(interpreter.visit(node), 2);
     /// ```
     #[inline]
     pub fn visit(&mut self, node: &AstNodes) -> Result<CrValue> {

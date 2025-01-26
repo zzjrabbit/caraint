@@ -17,6 +17,7 @@ pub enum Error {
     ArgMismatch,
     NonIntCalc,
     UnknownOperator,
+    NoPrinter,
     Return(CrValue),
     Break,
     Continue,
@@ -38,6 +39,7 @@ impl fmt::Display for Error {
             Self::ArgMismatch => write!(f, "argument mismatch"),
             Self::NonIntCalc => write!(f, "non-integer calculation"),
             Self::UnknownOperator => write!(f, "unknown operator"),
+            Self::NoPrinter => write!(f, "printer not set but print called"),
             _ => Ok(()),
         }
     }
