@@ -17,12 +17,12 @@ fn main() {
     });
 
     let lexer = Lexer::new(code);
-    let (ast, table) = Parser::new(lexer).parse_compile_unit();
+    let ast = Parser::new(lexer).parse_compile_unit();
 
     #[cfg(debug_assertions)]
     println!("{:#?}", ast);
 
-    let mut interpreter = Interpreter::new(table);
+    let mut interpreter = Interpreter::new();
     interpreter.set_printer(|args| print!("{}", args));
 
     match interpreter.visit(&ast) {

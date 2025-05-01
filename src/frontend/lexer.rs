@@ -1,6 +1,5 @@
 use alloc::collections::BTreeMap;
-use alloc::string::String;
-use alloc::vec::Vec;
+use alloc::string::{String, ToString};
 use dashu_int::IBig;
 
 use crate::ast::Op;
@@ -96,7 +95,6 @@ pub struct Lexer {
     input: String,
     position: usize,
     strings: BTreeMap<String, usize>,
-    string_table: Vec<String>,
     next_id: usize,
 }
 
@@ -104,18 +102,23 @@ impl Lexer {
     /// Creates a new Lexer with the input.
     ///
     /// # Example
-    ///
     /// ``` rust
     /// use cara::frontend::Lexer;
     /// let lexer = Lexer::new("1+2*3".into());
     /// ```
     #[must_use]
-    pub const fn new(input: String) -> Self {
+    pub fn new(input: String) -> Self {
+        let strings = BTreeMap::from([
+            ("print".to_string(), 0),
+            ("append".to_string(), 1),
+            ("insert".to_string(), 2),
+            ("len".to_string(), 3),
+            ("remove".to_string(), 4),
+        ]);
         Self {
             input,
             position: 0,
-            strings: BTreeMap::new(),
-            string_table: Vec::new(),
+            strings,
             next_id: 0,
         }
     }
@@ -134,15 +137,9 @@ impl Lexer {
         self.input.chars().nth(self.position).unwrap_or('\0')
     }
 
-    #[must_use]
-    pub fn string_table(&self) -> Vec<String> {
-        self.string_table.clone()
-    }
-
     /// Let the lexer parse a token and return it.
     ///
     /// # Example
-    ///
     /// ```rust
     /// use cara::frontend::Lexer;
     /// let mut lexer = Lexer::new("1+2*3".into());
@@ -248,7 +245,6 @@ impl Lexer {
                             return Some(Token::Id(*n));
                         }
                         let n = self.next_id;
-                        self.string_table.push(id.clone());
                         self.strings.insert(id, n);
                         self.next_id += 1;
                         return Some(Token::Id(n));

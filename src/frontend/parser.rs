@@ -1,4 +1,5 @@
-use alloc::{string::String, vec::Vec};
+use alloc::vec;
+use alloc::vec::Vec;
 use dashu_int::IBig;
 
 use super::{KeywordTypes, Lexer, Token};
@@ -11,8 +12,9 @@ pub struct Parser {
 }
 
 impl Parser {
-    /// Creates a parser with a lexer. \
-    /// Expample
+    /// Creates a parser with a lexer.
+    ///
+    /// # Example
     /// ```rust
     /// use cara::frontend::{Lexer,Parser};
     /// let lexer = Lexer::new("1+1".into());
@@ -51,95 +53,22 @@ impl Parser {
         }
     }
 
-    /// Returns the whole AST. \
-    /// ### Expample
+    /// Returns the whole AST.
+    ///
+    /// # Example
     /// ```rust
     /// use cara::frontend::{Lexer, Parser};
-    /// let lexer = Lexer::new("1-(5+7)/2+2*3-100".into());
+    /// let lexer = Lexer::new("print(1-(5+7)/2+2*3-100);".into());
     /// let mut parser = Parser::new(lexer);
     /// let ast = parser.parse_compile_unit();
-    /// println!("{:#?}",ast);
+    /// println!("{:#?}", ast);
     /// ```
-    ///
-    /// ### Output:
-    /// ```
-    /// CompileUnit(
-    ///     BinaryOp(
-    ///         BinaryOp(
-    ///             BinaryOp(
-    ///                 Number(
-    ///                     1,
-    ///                 ),
-    ///                 '-',
-    ///                 BinaryOp(
-    ///                     BinaryOp(
-    ///                         Number(
-    ///                             5,
-    ///                         ),
-    ///                         '+',
-    ///                         Number(
-    ///                             7,
-    ///                         ),
-    ///                     ),
-    ///                     '/',
-    ///                     Number(
-    ///                         2,
-    ///                     ),
-    ///                 ),
-    ///             ),
-    ///             '+',
-    ///             BinaryOp(
-    ///                 Number(
-    ///                     2,
-    ///                 ),
-    ///                 '*',
-    ///                 Number(
-    ///                     3,
-    ///                 ),
-    ///             ),
-    ///         ),
-    ///         '-',
-    ///         Number(
-    ///             100,
-    ///         ),
-    ///     ),
-    /// )*/
-    /// ```
-    pub fn parse_compile_unit(&mut self) -> (AstNodes, Vec<String>) {
+    pub fn parse_compile_unit(&mut self) -> AstNodes {
         let mut children = Vec::new();
         while self.current_token.is_some() {
             children.push(self.parse_statement());
         }
-        (AstNodes::CompileUnit(children), self.lexer.string_table())
-    }
-
-    fn parse_statement(&mut self) -> AstNodes {
-        if let Some(current_token) = self.current_token.clone() {
-            match current_token {
-                Token::Keyword(key_word) => {
-                    return match key_word {
-                        KeywordTypes::Var => self.parse_var(),
-                        KeywordTypes::Const => self.parse_const(),
-                        KeywordTypes::Fn => self.parse_function(),
-                        KeywordTypes::Return => self.parse_return(),
-                        KeywordTypes::If => self.parse_if(),
-                        KeywordTypes::For => self.parse_for(),
-                        KeywordTypes::Break => self.parse_break(),
-                        KeywordTypes::Continue => self.parse_continue(),
-                        KeywordTypes::While => self.parse_while(),
-                        _ => unreachable!(),
-                    }
-                }
-                Token::Id(_) => {
-                    if self.lexer.current_char() == '(' {
-                        return self.parse_call(true);
-                    }
-                    return self.parse_assign();
-                }
-                _ => panic!("Syntax error {:?}!", current_token),
-            }
-        }
-        panic!("Nothing to parse!");
+        AstNodes::CompileUnit(children)
     }
 
     fn parse_break(&mut self) -> AstNodes {
@@ -161,29 +90,53 @@ impl Parser {
         AstNodes::While(condition.into(), body)
     }
 
+    fn parse_statement(&mut self) -> AstNodes {
+        match self.current_token.as_ref() {
+            Some(Token::Keyword(key_word)) => match key_word {
+                KeywordTypes::Var => self.parse_var(),
+                KeywordTypes::Const => self.parse_const(),
+                KeywordTypes::Fn => self.parse_function(),
+                KeywordTypes::Return => self.parse_return(),
+                KeywordTypes::If => self.parse_if(),
+                KeywordTypes::For => self.parse_for(),
+                KeywordTypes::Break => self.parse_break(),
+                KeywordTypes::Continue => self.parse_continue(),
+                KeywordTypes::While => self.parse_while(),
+                _ => unreachable!(),
+            },
+            Some(Token::Id(_)) => {
+                if self.lexer.current_char() == '(' {
+                    self.parse_call(true)
+                } else {
+                    self.parse_assign()
+                }
+            }
+            Some(token) => panic!("Syntax error {:?}!", token),
+            None => panic!("Nothing to parse!"),
+        }
+    }
+
     fn parse_list(&mut self) -> AstNodes {
         self.eat(Token::LBracket);
-        let mut value_list = Vec::new();
 
-        if self.current_token != Some(Token::RBracket) {
-            let first_value = self.parse_expr();
+        if self.current_token == Some(Token::RBracket) {
+            self.eat(Token::RBracket);
+            return AstNodes::List(Vec::new());
+        }
 
-            if self.current_token == Some(Token::Semi) {
-                self.advance();
-                let num = self.parse_expr();
-                self.eat(Token::RBracket);
-                return AstNodes::TemplateList(first_value.into(), num.into());
-            }
+        let first_value = self.parse_expr();
 
-            value_list.push(first_value);
-            while let Some(token) = self.current_token.clone() {
-                if token == Token::RBracket {
-                    break;
-                }
-                self.eat(Token::Comma);
-                let value = self.parse_expr();
-                value_list.push(value);
-            }
+        if self.current_token == Some(Token::Semi) {
+            self.advance();
+            let count = self.parse_expr();
+            self.eat(Token::RBracket);
+            return AstNodes::TemplateList(first_value.into(), count.into());
+        }
+
+        let mut value_list = vec![first_value];
+        while self.current_token != Some(Token::RBracket) {
+            self.eat(Token::Comma);
+            value_list.push(self.parse_expr());
         }
 
         self.eat(Token::RBracket);

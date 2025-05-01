@@ -1,5 +1,5 @@
 use alloc::{borrow::ToOwned, vec};
-use alloc::{rc::Rc, string::String, vec::Vec};
+use alloc::{rc::Rc, vec::Vec};
 use core::iter::zip;
 use dashu_int::IBig;
 use value::CrValue;
@@ -17,7 +17,6 @@ mod value;
 pub struct Interpreter {
     symbol_tables: SymbolTables,
     printer: Option<fn(core::fmt::Arguments)>,
-    string_table: Vec<String>,
 }
 
 impl Interpreter {
@@ -29,11 +28,11 @@ impl Interpreter {
     /// let interpreter = Interpreter::new();
     /// ```
     #[must_use]
-    pub fn new(string_table: Vec<String>) -> Self {
+    pub fn new() -> Self {
+        let tables = vec![SymbolTable::new()];
         Self {
-            symbol_tables: vec![SymbolTable::new()].into(),
+            symbol_tables: SymbolTables(tables),
             printer: None,
-            string_table,
         }
     }
 
@@ -41,7 +40,6 @@ impl Interpreter {
     /// The printer is called when the `print` function in cara is called.
     ///
     /// # Example
-    ///
     /// ```rust
     /// use cara::backend::Interpreter;
     /// let mut interpreter = Interpreter::new();
@@ -58,14 +56,16 @@ impl Interpreter {
     /// # Example
     /// ```rust
     /// use cara::backend::Interpreter;
-    /// use cara::frontend::{Parser,Lexer};
+    /// use cara::frontend::{Parser, Lexer};
     ///
-    /// let lexer = Lexer::new("1+1".into());
+    /// let lexer = Lexer::new("print(1+1);".into());
     /// let mut parser = Parser::new(lexer);
-    /// let node = parser.parse_compile_unit();
+    /// let ast = parser.parse_compile_unit();
     ///
     /// let mut interpreter = Interpreter::new();
-    /// assert_eq!(interpreter.visit(node), 2);
+    /// if let Err(e) = interpreter.visit(&ast) {
+    ///     eprintln!("Runtime error: {e}");
+    /// }
     /// ```
     ///
     /// # Errors
@@ -107,12 +107,12 @@ impl Interpreter {
         F: FnOnce(&mut Self) -> R,
     {
         let cur_index = self.symbol_tables.len();
-        self.symbol_tables.0.push(SymbolTable::new());
+        self.symbol_tables.push(SymbolTable::new());
 
         let result = f(self);
 
         debug_assert_eq!(self.symbol_tables.len(), cur_index + 1);
-        self.symbol_tables.0.pop().unwrap();
+        self.symbol_tables.pop().unwrap();
         result
     }
 
@@ -321,23 +321,23 @@ impl Interpreter {
     }
 
     fn visit_call(&mut self, id: usize, args: &[AstNodes]) -> Result<CrValue> {
-        match self.string_table[id].as_str() {
-            "print" => {
+        match id {
+            0 => {
                 self.print(args)?;
                 return Ok(CrValue::Void);
             }
-            "append" => {
+            1 => {
                 self.append(args)?;
                 return Ok(CrValue::Void);
             }
-            "insert" => {
+            2 => {
                 self.insert(args)?;
                 return Ok(CrValue::Void);
             }
-            "len" => {
+            3 => {
                 return self.len(args);
             }
-            "remove" => {
+            4 => {
                 return self.remove(args);
             }
             _ => {}
@@ -355,11 +355,10 @@ impl Interpreter {
                     this.symbol_tables.insert_sym(value);
                 }
                 for item in body.as_ref() {
-                    if let Err(error) = this.visit(item) {
-                        if let Error::Return(value) = error {
-                            return Ok(value);
-                        }
-                        return Err(error);
+                    match this.visit(item) {
+                        Err(Error::Return(value)) => return Ok(value),
+                        Err(error) => return Err(error),
+                        Ok(_) => {}
                     }
                 }
                 Ok(CrValue::Void)
