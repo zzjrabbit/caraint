@@ -8,7 +8,7 @@ This interpreter can run on any platform which supports filesystem operations an
 
 ## Example
 
-```cara {"id":"01J4TFQX7SZQNX28QWXY971H36"}
+```js
 var test_array = [0;5];
 
 for i in (0,5) {
@@ -23,5 +23,4 @@ var length = len(test_array);
 
 print(test_array);
 print(length);
-
 ```
