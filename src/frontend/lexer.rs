@@ -101,8 +101,10 @@ pub struct Lexer {
 }
 
 impl Lexer {
-    /// Creates a new Lexer with the input. \
-    /// Example
+    /// Creates a new Lexer with the input.
+    ///
+    /// # Example
+    ///
     /// ``` rust
     /// use cara::frontend::Lexer;
     /// let lexer = Lexer::new("1+2*3".into());
@@ -132,12 +134,15 @@ impl Lexer {
         self.input.chars().nth(self.position).unwrap_or('\0')
     }
 
+    #[must_use]
     pub fn string_table(&self) -> Vec<String> {
         self.string_table.clone()
     }
 
-    /// Let the lexer parse a token and return it. \
-    /// Example
+    /// Let the lexer parse a token and return it.
+    ///
+    /// # Example
+    ///
     /// ```rust
     /// use cara::frontend::Lexer;
     /// let mut lexer = Lexer::new("1+2*3".into());
@@ -223,7 +228,7 @@ impl Lexer {
                 '[' => return Some(Token::LBracket),
                 ']' => return Some(Token::RBracket),
                 ',' => return Some(Token::Comma),
-                ' ' | '\n' | '\r' => continue,
+                ' ' | '\n' | '\r' => (),
                 _ => {
                     if ch.is_alphabetic() || ch == '_' {
                         let mut id = String::new();
@@ -241,13 +246,12 @@ impl Lexer {
 
                         if let Some(n) = self.strings.get(&id) {
                             return Some(Token::Id(*n));
-                        } else {
-                            let n = self.next_id;
-                            self.string_table.push(id.clone());
-                            self.strings.insert(id, n);
-                            self.next_id += 1;
-                            return Some(Token::Id(n));
                         }
+                        let n = self.next_id;
+                        self.string_table.push(id.clone());
+                        self.strings.insert(id, n);
+                        self.next_id += 1;
+                        return Some(Token::Id(n));
                     }
                     panic!("Unexpected charactor {}!", ch)
                 }
