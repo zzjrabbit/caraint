@@ -21,8 +21,9 @@ pub struct Interpreter {
 }
 
 impl Interpreter {
-    /// Creates a new Interpreter. \
-    /// Example
+    /// Creates a new Interpreter.
+    ///
+    /// # Example
     /// ```rust
     /// use cara::backend::Interpreter;
     /// let interpreter = Interpreter::new();
@@ -37,8 +38,10 @@ impl Interpreter {
     }
 
     /// Set the printer. \
-    /// The printer is called when the `print` function in cara is called. \
-    /// Example
+    /// The printer is called when the `print` function in cara is called.
+    ///
+    /// # Example
+    ///
     /// ```rust
     /// use cara::backend::Interpreter;
     /// let mut interpreter = Interpreter::new();
@@ -50,8 +53,9 @@ impl Interpreter {
 }
 
 impl Interpreter {
-    /// Visits the AST node with the visitor mode. \
-    /// Example
+    /// Visits the AST node with the visitor mode.
+    ///
+    /// # Example
     /// ```rust
     /// use cara::backend::Interpreter;
     /// use cara::frontend::{Parser,Lexer};
@@ -63,14 +67,19 @@ impl Interpreter {
     /// let mut interpreter = Interpreter::new();
     /// assert_eq!(interpreter.visit(node), 2);
     /// ```
+    ///
+    /// # Errors
+    /// - when Break
+    /// - when Continue
+    /// - sub visit return error
     #[inline]
     pub fn visit(&mut self, node: &AstNodes) -> Result<CrValue> {
         match node {
             AstNodes::Assign(id, index, value) => self.visit_assign(*id, index.as_ref(), value),
-            AstNodes::BinaryOp(left, op, right) => self.visit_binary_op(left, op, right),
+            AstNodes::BinaryOp(left, op, right) => self.visit_binary_op(left, *op, right),
             AstNodes::CompileUnit(statements) => self.visit_compile_unit(statements),
             AstNodes::Number(num) => Ok(CrValue::Number(num.clone())),
-            AstNodes::UnaryOp(op, val) => self.visit_unary_op(op, val),
+            AstNodes::UnaryOp(op, val) => self.visit_unary_op(*op, val),
             AstNodes::VarDef(id, init_value) => self.visit_var_def(*id, init_value),
             AstNodes::ConstDef(id, const_value) => self.visit_const_def(*id, const_value),
             AstNodes::ReadVar(id) => self.visit_read_var(*id),
@@ -227,7 +236,7 @@ impl Interpreter {
     fn visit_binary_op(
         &mut self,
         left: &Rc<AstNodes>,
-        op: &Op,
+        op: Op,
         right: &Rc<AstNodes>,
     ) -> Result<CrValue> {
         let left = self.visit(left)?;
@@ -264,7 +273,7 @@ impl Interpreter {
     }
 
     #[inline]
-    fn visit_unary_op(&mut self, op: &Op, val: &Rc<AstNodes>) -> Result<CrValue> {
+    fn visit_unary_op(&mut self, op: Op, val: &Rc<AstNodes>) -> Result<CrValue> {
         let value = self.visit(val)?;
         let result = match op {
             Op::Sub => -value.as_int()?,

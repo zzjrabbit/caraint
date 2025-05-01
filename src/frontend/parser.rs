@@ -133,9 +133,8 @@ impl Parser {
                 Token::Id(_) => {
                     if self.lexer.current_char() == '(' {
                         return self.parse_call(true);
-                    } else {
-                        return self.parse_assign();
                     }
+                    return self.parse_assign();
                 }
                 _ => panic!("Syntax error {:?}!", current_token),
             }
@@ -174,16 +173,16 @@ impl Parser {
                 let num = self.parse_expr();
                 self.eat(Token::RBracket);
                 return AstNodes::TemplateList(first_value.into(), num.into());
-            } else {
-                value_list.push(first_value);
-                while let Some(token) = self.current_token.clone() {
-                    if token == Token::RBracket {
-                        break;
-                    }
-                    self.eat(Token::Comma);
-                    let value = self.parse_expr();
-                    value_list.push(value);
+            }
+
+            value_list.push(first_value);
+            while let Some(token) = self.current_token.clone() {
+                if token == Token::RBracket {
+                    break;
                 }
+                self.eat(Token::Comma);
+                let value = self.parse_expr();
+                value_list.push(value);
             }
         }
 
@@ -274,9 +273,8 @@ impl Parser {
         while let Some(current) = self.current_token.clone() {
             if current == Token::RBrace {
                 break;
-            } else {
-                body.push(self.parse_statement());
             }
+            body.push(self.parse_statement());
         }
 
         self.eat(Token::RBrace);
@@ -512,13 +510,14 @@ impl Parser {
         while let Some(current_token) = self.current_token.clone() {
             if current_token == Token::RParen {
                 break;
+            }
+
+            args.push(self.parse_expr());
+
+            if self.current_token == Some(Token::Comma) {
+                self.advance();
             } else {
-                args.push(self.parse_expr());
-                if self.current_token == Some(Token::Comma) {
-                    self.advance();
-                } else {
-                    break;
-                }
+                break;
             }
         }
         args
