@@ -23,6 +23,9 @@ pub enum Error {
     Continue,
 }
 
+/// Result type of IR generator.
+pub type Result<T> = core::result::Result<T, Error>;
+
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -44,12 +47,3 @@ impl fmt::Display for Error {
         }
     }
 }
-
-impl fmt::Debug for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{self}")
-    }
-}
-
-/// Result type of IR generator.
-pub type Result<T> = core::result::Result<T, Error>;

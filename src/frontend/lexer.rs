@@ -118,8 +118,8 @@ impl Lexer {
         Self {
             input,
             position: 0,
+            next_id: strings.len(),
             strings,
-            next_id: 0,
         }
     }
 
