@@ -13,6 +13,12 @@ pub enum CrValue {
     Void,
 }
 
+impl PartialEq<IBig> for CrValue {
+    fn eq(&self, other: &IBig) -> bool {
+        matches!(self, Self::Number(num) if num == other)
+    }
+}
+
 impl Display for CrValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
