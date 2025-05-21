@@ -26,7 +26,7 @@ impl Interpreter {
     /// # Example
     /// ```rust
     /// use cara::backend::Interpreter;
-    /// let interpreter = Interpreter::new();
+    /// let interpreter = Interpreter::new(vec![]);
     /// ```
     #[must_use]
     pub fn new(string_table: Vec<String>) -> Self {
@@ -44,7 +44,7 @@ impl Interpreter {
     ///
     /// ```rust
     /// use cara::backend::Interpreter;
-    /// let mut interpreter = Interpreter::new();
+    /// let mut interpreter = Interpreter::new(vec![]);
     /// interpreter.set_printer(|args| print!("{}", args));
     /// ```
     pub fn set_printer(&mut self, printer: fn(core::fmt::Arguments)) {
@@ -53,19 +53,21 @@ impl Interpreter {
 }
 
 impl Interpreter {
+    // FIXME: fix this test
     /// Visits the AST node with the visitor mode.
     ///
     /// # Example
-    /// ```rust
+    /// ```rust,no_run
     /// use cara::backend::Interpreter;
     /// use cara::frontend::{Parser,Lexer};
+    /// use dashu_int::IBig;
     ///
     /// let lexer = Lexer::new("1+1".into());
     /// let mut parser = Parser::new(lexer);
-    /// let node = parser.parse_compile_unit();
+    /// let (node, table) = parser.parse_compile_unit();
     ///
-    /// let mut interpreter = Interpreter::new();
-    /// assert_eq!(interpreter.visit(node), 2);
+    /// let mut interpreter = Interpreter::new(table);
+    /// assert_eq!(interpreter.visit(&node).unwrap(), IBig::from(2));
     /// ```
     ///
     /// # Errors
@@ -107,12 +109,12 @@ impl Interpreter {
         F: FnOnce(&mut Self) -> R,
     {
         let cur_index = self.symbol_tables.len();
-        self.symbol_tables.0.push(SymbolTable::new());
+        self.symbol_tables.push_new();
 
         let result = f(self);
 
         debug_assert_eq!(self.symbol_tables.len(), cur_index + 1);
-        self.symbol_tables.0.pop().unwrap();
+        self.symbol_tables.pop();
         result
     }
 

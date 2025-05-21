@@ -60,11 +60,39 @@ impl SymbolTable {
     }
 }
 
-pub struct SymbolTables(pub Vec<SymbolTable>);
+pub struct SymbolTables {
+    tables: Vec<SymbolTable>,
+    len: usize,
+}
+impl SymbolTables {
+    #[allow(unused)]
+    #[must_use]
+    pub fn pop_take(&mut self) -> Option<SymbolTable> {
+        self.tables.pop()
+    }
+
+    pub fn pop(&mut self) -> bool {
+        let not_empty = self.len != 0;
+        if not_empty {
+            self.len -= 1;
+            let len = self.len;
+            self[len].clear();
+        }
+        not_empty
+    }
+
+    pub fn push_new(&mut self) {
+        if self.len <= self.tables.len() {
+            self.tables.push(SymbolTable::new());
+        }
+        self.len += 1;
+    }
+}
 
 impl From<Vec<SymbolTable>> for SymbolTables {
-    fn from(value: Vec<SymbolTable>) -> Self {
-        Self(value)
+    fn from(tables: Vec<SymbolTable>) -> Self {
+        let len = tables.len();
+        Self { tables, len }
     }
 }
 
@@ -72,24 +100,24 @@ impl Deref for SymbolTables {
     type Target = [SymbolTable];
 
     fn deref(&self) -> &Self::Target {
-        &self.0
+        &self.tables[..self.len]
     }
 }
 
 impl DerefMut for SymbolTables {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+        &mut self.tables[..self.len]
     }
 }
 
 impl SymbolTables {
     #[allow(unused)]
     pub fn last(&self) -> &SymbolTable {
-        self.0.last().unwrap()
+        (**self).last().unwrap()
     }
 
     pub fn last_mut(&mut self) -> &mut SymbolTable {
-        self.0.last_mut().unwrap()
+        (**self).last_mut().unwrap()
     }
 
     pub fn insert_sym(&mut self, symbol: Symbol) {
