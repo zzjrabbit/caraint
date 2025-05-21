@@ -101,38 +101,27 @@ impl Interpreter {
         }
     }
 
-    #[inline]
-    fn with_block<F, R>(&mut self, f: F) -> R
-    where
-        F: FnOnce(&mut Self) -> R,
-    {
-        let cur_index = self.symbol_tables.len();
-        self.symbol_tables.0.push(SymbolTable::new());
-
-        let result = f(self);
-
-        debug_assert_eq!(self.symbol_tables.len(), cur_index + 1);
-        self.symbol_tables.0.pop().unwrap();
-        result
+    fn block_guard(&mut self) -> BlockGuard<'_> {
+        BlockGuard::new(self)
     }
 
     fn visit_while(&mut self, condition: &Rc<AstNodes>, body: &[AstNodes]) -> Result<CrValue> {
-        self.with_block(|this| {
-            while *this.visit(condition)?.as_int()? > IBig::ZERO {
-                this.symbol_tables.clear_last();
+        let mut this = self.block_guard();
 
-                for item in body {
-                    match this.visit(item) {
-                        Ok(_) => (),
-                        Err(Error::Break) => return Ok(CrValue::Void),
-                        Err(Error::Continue) => break,
-                        Err(e) => return Err(e),
-                    }
+        while *this.visit(condition)?.as_int()? > IBig::ZERO {
+            this.symbol_tables.clear_last();
+
+            for item in body {
+                match this.visit(item) {
+                    Ok(_) => (),
+                    Err(Error::Break) => return Ok(CrValue::Void),
+                    Err(Error::Continue) => break,
+                    Err(e) => return Err(e),
                 }
             }
+        }
 
-            Ok(CrValue::Void)
-        })
+        Ok(CrValue::Void)
     }
 
     #[inline]
@@ -179,25 +168,25 @@ impl Interpreter {
         let end = isize::try_from(end.as_int()?).unwrap();
         let step = usize::try_from(step.as_int()?).unwrap();
 
-        self.with_block(|this| {
-            for number in (start..end).step_by(step) {
-                this.symbol_tables.clear_last();
+        let mut this = self.block_guard();
 
-                let number = IBig::from(number);
-                let value = Symbol::Const(variable.to_owned(), CrValue::Number(number));
-                this.symbol_tables.insert_sym(value);
+        for number in (start..end).step_by(step) {
+            this.symbol_tables.clear_last();
 
-                for item in body {
-                    match this.visit(item) {
-                        Ok(_) => (),
-                        Err(Error::Break) => return Ok(CrValue::Void),
-                        Err(Error::Continue) => break,
-                        Err(e) => return Err(e),
-                    }
+            let number = IBig::from(number);
+            let value = Symbol::Const(variable.to_owned(), CrValue::Number(number));
+            this.symbol_tables.insert_sym(value);
+
+            for item in body {
+                match this.visit(item) {
+                    Ok(_) => (),
+                    Err(Error::Break) => return Ok(CrValue::Void),
+                    Err(Error::Continue) => break,
+                    Err(e) => return Err(e),
                 }
             }
-            Ok(CrValue::Void)
-        })
+        }
+        Ok(CrValue::Void)
     }
 
     fn visit_if(
@@ -207,13 +196,14 @@ impl Interpreter {
         else_block: &[AstNodes],
     ) -> Result<CrValue> {
         let condition = self.visit(condition)?;
-        self.with_block(|this| {
-            if *condition.as_int()? > IBig::ZERO {
-                this.visit_compile_unit(then_block)
-            } else {
-                this.visit_compile_unit(else_block)
-            }
-        })
+
+        let mut this = self.block_guard();
+
+        if *condition.as_int()? > IBig::ZERO {
+            this.visit_compile_unit(then_block)
+        } else {
+            this.visit_compile_unit(else_block)
+        }
     }
 
     fn visit_assign(
@@ -267,8 +257,7 @@ impl Interpreter {
     fn visit_compile_unit(&mut self, statements: &[AstNodes]) -> Result<CrValue> {
         statements
             .iter()
-            .map(|item| self.visit(item))
-            .collect::<Result<Vec<CrValue>>>()?;
+            .try_for_each(|item| self.visit(item).map(drop))?;
         Ok(CrValue::Void)
     }
 
@@ -313,8 +302,8 @@ impl Interpreter {
     ) -> Result<CrValue> {
         let symbol = Symbol::Function(
             id.to_owned(),
-            params.to_owned().into(),
-            body.to_vec().into(),
+            params.into(),
+            body.into(),
         );
         self.symbol_tables.insert_sym(symbol);
         Ok(CrValue::Void)
@@ -349,7 +338,9 @@ impl Interpreter {
             .unwrap_or_else(|_| panic!("Unable to find function {id}!"));
 
         match function {
-            Symbol::Function(_, params, body) => self.with_block(|this| {
+            Symbol::Function(_, params, body) => {
+                let mut this = self.block_guard();
+
                 for (name, value) in zip(params.as_ref(), args) {
                     let value = Symbol::Const(*name, this.visit(value)?);
                     this.symbol_tables.insert_sym(value);
@@ -363,7 +354,7 @@ impl Interpreter {
                     }
                 }
                 Ok(CrValue::Void)
-            }),
+            },
             _ => Err(Error::SymbolNotFound(id)),
         }
     }
@@ -372,5 +363,45 @@ impl Interpreter {
     fn visit_return(&mut self, value: &Rc<AstNodes>) -> Result<CrValue> {
         let val = self.visit(value)?;
         Err(Error::Return(val))
+    }
+}
+
+struct BlockGuard<'a> {
+    interpreter: &'a mut Interpreter,
+    #[cfg(debug_assertions)]
+    old_len: usize,
+}
+
+impl<'a> BlockGuard<'a> {
+    fn new(interpreter: &'a mut Interpreter) -> Self {
+        interpreter.symbol_tables.0.push(SymbolTable::new());
+
+        Self {
+            #[cfg(debug_assertions)]
+            old_len: interpreter.symbol_tables.len(),
+            interpreter,
+        }
+    }
+}
+
+impl Drop for BlockGuard<'_> {
+    fn drop(&mut self) {
+        #[cfg(debug_assertions)]
+        debug_assert_eq!(self.interpreter.symbol_tables.len(), self.old_len);
+        self.interpreter.symbol_tables.0.pop().unwrap();
+    }
+}
+
+impl core::ops::DerefMut for BlockGuard<'_> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.interpreter
+    }
+}
+
+impl<'a> core::ops::Deref for BlockGuard<'a> {
+    type Target = &'a mut Interpreter;
+
+    fn deref(&self) -> &Self::Target {
+        &self.interpreter
     }
 }

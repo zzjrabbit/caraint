@@ -1,4 +1,4 @@
-use alloc::{string::String, vec::Vec};
+use alloc::{rc::Rc, string::String, vec::Vec};
 use dashu_int::IBig;
 
 use super::{KeywordTypes, Lexer, Token};
@@ -235,13 +235,13 @@ impl Parser {
             self.eat(Token::RBrace);
             block
         } else {
-            Vec::new()
+            [].into()
         };
 
         AstNodes::If(condition.into(), then_block, else_block)
     }
 
-    fn parse_block(&mut self) -> Vec<AstNodes> {
+    fn parse_block(&mut self) -> Rc<[AstNodes]> {
         let mut children = Vec::new();
         while self.current_token.is_some() {
             if self.current_token == Some(Token::RBrace) {
@@ -249,7 +249,7 @@ impl Parser {
             }
             children.push(self.parse_statement());
         }
-        children
+        children.into()
     }
 
     fn parse_return(&mut self) -> AstNodes {
@@ -269,20 +269,14 @@ impl Parser {
 
         self.eat(Token::LBrace);
 
-        let mut body = Vec::new();
-        while let Some(current) = self.current_token.clone() {
-            if current == Token::RBrace {
-                break;
-            }
-            body.push(self.parse_statement());
-        }
+        let body = self.parse_block();
 
         self.eat(Token::RBrace);
 
         AstNodes::FunctionDef(id, params, body)
     }
 
-    fn parse_params(&mut self) -> Vec<usize> {
+    fn parse_params(&mut self) -> Rc<[usize]> {
         let mut params = Vec::new();
         while let Some(current_token) = self.current_token.clone() {
             match current_token {
@@ -304,7 +298,7 @@ impl Parser {
                 ),
             }
         }
-        params
+        params.into()
     }
 
     fn parse_const(&mut self) -> AstNodes {
