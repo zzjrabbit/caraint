@@ -68,6 +68,9 @@ impl SymbolTables {
     #[allow(unused)]
     #[must_use]
     pub fn pop_take(&mut self) -> Option<SymbolTable> {
+        if self.len != 0 {
+            self.len -= 1;
+        }
         self.tables.pop()
     }
 
@@ -76,7 +79,7 @@ impl SymbolTables {
         if not_empty {
             self.len -= 1;
             let len = self.len;
-            self[len].clear();
+            self.tables[len].clear();
         }
         not_empty
     }
