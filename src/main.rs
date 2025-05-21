@@ -6,16 +6,37 @@ use cara::backend::Interpreter;
 use cara::frontend::{Lexer, Parser};
 
 fn main() {
-    let path = args().nth(1).unwrap_or_else(|| {
-        eprintln!("Usage: cara <source-file>");
-        exit(1);
-    });
+    let options = getopts_macro::getopts_options! {
+        -h  --help*         "Show help";
+        -v  --version       "Show version";
+    };
+    let matched = match options.parse(args().skip(1)) {
+        Ok(matched) => matched,
+        Err(e) => {
+            eprintln!("{e}");
+            exit(2)
+        },
+    };
+    if matched.opt_present("help") {
+        print!("{}", options.usage("Usage: cara <source-file>"));
+        exit(0)
+    }
+    if matched.opt_present("version") {
+        println!("{}", env!("CARGO_PKG_VERSION"));
+        exit(0)
+    }
 
-    let code = fs::read_to_string(&path).unwrap_or_else(|e| {
-        eprintln!("Failed to read {}: {}", path, e);
-        exit(1);
-    });
+    for path in matched.free {
+        let code = fs::read_to_string(&path).unwrap_or_else(|e| {
+            eprintln!("Failed to read {}: {}", path, e);
+            exit(1);
+        });
 
+        process_file(code);
+    }
+}
+
+fn process_file(code: String) {
     let lexer = Lexer::new(code);
     let (ast, table) = Parser::new(lexer).parse_compile_unit();
 
