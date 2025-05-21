@@ -11,13 +11,13 @@ use crate::ast::AstNodes;
 pub enum Symbol {
     Const(usize, CrValue),
     Var(usize, CrValue),
-    Function(usize, Rc<Vec<usize>>, Rc<Vec<AstNodes>>),
+    Function(usize, Rc<[usize]>, Rc<[AstNodes]>),
 }
 
 impl Symbol {
-    pub fn get_id(&self) -> &usize {
+    pub fn get_id(&self) -> usize {
         match self {
-            Self::Const(id, _) | Self::Var(id, _) | Self::Function(id, _, _) => id,
+            Self::Const(id, _) | Self::Var(id, _) | Self::Function(id, _, _) => *id,
         }
     }
 
@@ -93,7 +93,7 @@ impl SymbolTables {
     }
 
     pub fn insert_sym(&mut self, symbol: Symbol) {
-        self.last_mut().symbols.insert(*symbol.get_id(), symbol);
+        self.last_mut().symbols.insert(symbol.get_id(), symbol);
     }
 
     pub fn clear_last(&mut self) {
