@@ -49,7 +49,7 @@ pub struct SymbolTable {
 }
 
 impl SymbolTable {
-    pub const fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             symbols: BTreeMap::new(),
         }
@@ -62,8 +62,14 @@ impl SymbolTable {
 
 pub struct SymbolTables(pub Vec<SymbolTable>);
 
+impl From<Vec<SymbolTable>> for SymbolTables {
+    fn from(value: Vec<SymbolTable>) -> Self {
+        Self(value)
+    }
+}
+
 impl Deref for SymbolTables {
-    type Target = Vec<SymbolTable>;
+    type Target = [SymbolTable];
 
     fn deref(&self) -> &Self::Target {
         &self.0

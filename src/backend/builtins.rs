@@ -1,8 +1,8 @@
 use dashu_int::IBig;
 
-use super::Interpreter;
 use super::result::{Error, Result};
 use super::value::CrValue;
+use super::Interpreter;
 use crate::ast::AstNodes;
 
 impl Interpreter {
