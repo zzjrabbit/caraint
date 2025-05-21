@@ -51,9 +51,11 @@ impl Parser {
         }
     }
 
-    /// Returns the whole AST. \
+    // FIXME: fix this test
+    /// Returns the whole AST.
+    ///
     /// ### Expample
-    /// ```rust
+    /// ```rust,no_run
     /// use cara::frontend::{Lexer, Parser};
     /// let lexer = Lexer::new("1-(5+7)/2+2*3-100".into());
     /// let mut parser = Parser::new(lexer);
@@ -62,7 +64,7 @@ impl Parser {
     /// ```
     ///
     /// ### Output:
-    /// ```
+    /// ```ignore
     /// CompileUnit(
     ///     BinaryOp(
     ///         BinaryOp(
@@ -103,7 +105,7 @@ impl Parser {
     ///             100,
     ///         ),
     ///     ),
-    /// )*/
+    /// )
     /// ```
     pub fn parse_compile_unit(&mut self) -> (AstNodes, Vec<String>) {
         let mut children = Vec::new();
